@@ -10,16 +10,37 @@
 #include <list>
 #include <utility>
 
+#include "boost/archive/text_oarchive.hpp"
+#include "boost/archive/text_iarchive.hpp"
+#include "boost/serialization/map.hpp"
+
 extern bool analyzed;
 extern bool analysis_just_finished;
 extern BWTA::Region* home;
 extern BWTA::Region* enemy_base;
 DWORD WINAPI AnalyzeThread();
 
+struct regions_data
+{
+    friend class boost::serialization::access;
+	template <class Archive>
+    void serialize(Archive & ar, const unsigned int version)
+    {
+        ar & chokeDependantRegion;
+    }
+	std::map<std::pair<int, int>, int> chokeDependantRegion;
+	regions_data() 
+	{}
+	regions_data(const std::map<std::pair<int, int>, int>& cdr)
+		: chokeDependantRegion(cdr)
+	{}
+};
+
 class BWRepDump : public BWAPI::AIModule
 {
 	//std::vector<bool> aggroPlayers;
-	std::map<BWAPI::TilePosition, int> chokeDependantRegion;
+	std::map<BWTA::Region*, int> BWTARegion;
+	regions_data rd;
 	void createChokeDependantRegions();
 	void displayChokeDependantRegions();
 public:
@@ -66,16 +87,15 @@ public:
 	//std::map<BWAPI::Unit*, BWAPI::UpgradeType> lastUpgrading;
 	//std::map<BWAPI::Unit*, BWAPI::TechType> lastResearching;
 
-	std::map<BWAPI::Player*, std::list<BWAPI::TechType>> listCurrentlyResearching;
-	std::map<BWAPI::Player*, std::list<BWAPI::TechType>> listResearched;
+	std::map<BWAPI::Player*, std::list<BWAPI::TechType> > listCurrentlyResearching;
+	std::map<BWAPI::Player*, std::list<BWAPI::TechType> > listResearched;
 
-	std::map<BWAPI::Player*, std::list<BWAPI::UpgradeType>> listCurrentlyUpgrading;
-	std::map<BWAPI::Player*, std::list<std::pair<BWAPI::UpgradeType, int>>> listUpgraded;
+	std::map<BWAPI::Player*, std::list<BWAPI::UpgradeType> > listCurrentlyUpgrading;
+	std::map<BWAPI::Player*, std::list<std::pair<BWAPI::UpgradeType, int> > > listUpgraded;
 
-	std::map<BWAPI::Player*, std::set<std::pair<BWAPI::Unit*, BWAPI::UnitType>>> unseenUnits;
-	//std::map<BWAPI::Player*, std::set<BWAPI::Unit*>> seenUnits;
-	std::map<BWAPI::Player*, std::set<BWAPI::Unit*>> seenThisTurn;
-
+	std::map<BWAPI::Player*, std::set<std::pair<BWAPI::Unit*, BWAPI::UnitType> > > unseenUnits;
+	//std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > seenUnits;
+	std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > seenThisTurn;
 
 	std::set<BWAPI::Player*> activePlayers;
 
