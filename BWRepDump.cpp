@@ -1,4 +1,4 @@
-#include "ExampleAIModule.h"
+#include "BWRepDump.h"
 #include <float.h>
 
 #define MAX_CDREGION_RADIUS 9
@@ -10,7 +10,7 @@ bool analysis_just_finished;
 BWTA::Region* home;
 BWTA::Region* enemy_base;
 
-void ExampleAIModule::createChokeDependantRegions()
+void BWRepDump::createChokeDependantRegions()
 {
 	// TODO
 	// if (serialized)
@@ -62,7 +62,7 @@ void ExampleAIModule::createChokeDependantRegions()
 		}
 }
 
-void ExampleAIModule::displayChokeDependantRegions()
+void BWRepDump::displayChokeDependantRegions()
 {
 	for (int x = 0; x < Broodwar->mapWidth(); ++x)
 		for (int y = 0; y < Broodwar->mapHeight(); ++y)
@@ -72,15 +72,16 @@ void ExampleAIModule::displayChokeDependantRegions()
 		}
 }
 
-void ExampleAIModule::onStart()
+void BWRepDump::onStart()
 {
 	// Enable some cheat flags
-	Broodwar->enableFlag(Flag::UserInput);
+	//Broodwar->enableFlag(Flag::UserInput);
 	// Uncomment to enable complete map information
-	Broodwar->enableFlag(Flag::CompleteMapInformation);
+	//Broodwar->enableFlag(Flag::CompleteMapInformation);
 
 	//read map information into BWTA so terrain analysis can be done in another thread
 	BWTA::readMap();
+	BWTA::analyze();
 	analyzed=false;
 	analysis_just_finished=false;
 	this->createChokeDependantRegions();
@@ -89,11 +90,9 @@ void ExampleAIModule::onStart()
 	show_visibility_data=false;
 	unitDestroyedThisTurn=false;
 
-
 	if (Broodwar->isReplay())
 	{
 		// Broodwar->setLocalSpeed(0);
-		Broodwar->setGUI(false);
 		std::ofstream myfile;
 		std::string filepath = Broodwar->mapPathName() + ".rgd";
 		std::string locationfilepath = Broodwar->mapPathName() + ".rld";
@@ -135,7 +134,7 @@ void ExampleAIModule::onStart()
 	}
 }
 
-void ExampleAIModule::onEnd(bool isWinner)
+void BWRepDump::onEnd(bool isWinner)
 {
 	this->replayDat << "[EndGame]\n";
 	this->replayDat.close();
@@ -147,7 +146,7 @@ void ExampleAIModule::onEnd(bool isWinner)
 	}
 }
 
-void ExampleAIModule::handleVisionEvents()
+void BWRepDump::handleVisionEvents()
 {
 	for each(Player * p in this->activePlayers)
 	{
@@ -158,7 +157,7 @@ void ExampleAIModule::handleVisionEvents()
 	}
 }
 
-void ExampleAIModule::checkVision(Unit* u)
+void BWRepDump::checkVision(Unit* u)
 {
 	for each(Player * p in this->activePlayers)
 	{
@@ -192,7 +191,7 @@ void ExampleAIModule::checkVision(Unit* u)
 	}
 }
 
-void ExampleAIModule::handleTechEvents()
+void BWRepDump::handleTechEvents()
 {
 	for each(Player * p in this->activePlayers)
 	{
@@ -322,7 +321,7 @@ void ExampleAIModule::handleTechEvents()
 	}
 }
 
-void ExampleAIModule::onFrame()
+void BWRepDump::onFrame()
 {
 	//  if (show_visibility_data)
 	//    drawVisibilityData();
@@ -330,10 +329,8 @@ void ExampleAIModule::onFrame()
 	//  if (show_bullets)
 	//    drawBullets();
 
-	Broodwar->printf("not a replay");
 	if (Broodwar->isReplay())
 	{
-		Broodwar->printf("lalala");
 		this->displayChokeDependantRegions();
 
 		int resourcesRefreshSpeed = 25;
@@ -501,7 +498,7 @@ void ExampleAIModule::onFrame()
 	*/
 }
 
-void ExampleAIModule::onSendText(std::string text)
+void BWRepDump::onSendText(std::string text)
 {
 	/*
 	if (text=="/show bullets")
@@ -531,7 +528,7 @@ void ExampleAIModule::onSendText(std::string text)
 	*/
 }
 
-void ExampleAIModule::onReceiveText(BWAPI::Player* player, std::string text)
+void BWRepDump::onReceiveText(BWAPI::Player* player, std::string text)
 {
 	if(Broodwar->isReplay())
 	{
@@ -540,7 +537,7 @@ void ExampleAIModule::onReceiveText(BWAPI::Player* player, std::string text)
 	}
 }
 
-void ExampleAIModule::onPlayerLeft(BWAPI::Player* player)
+void BWRepDump::onPlayerLeft(BWAPI::Player* player)
 {
 	if(Broodwar->isReplay())
 	{
@@ -549,7 +546,7 @@ void ExampleAIModule::onPlayerLeft(BWAPI::Player* player)
 	}
 }
 
-void ExampleAIModule::onNukeDetect(BWAPI::Position target)
+void BWRepDump::onNukeDetect(BWAPI::Position target)
 {
 	/*
 	if (target!=Positions::Unknown)
@@ -563,7 +560,7 @@ void ExampleAIModule::onNukeDetect(BWAPI::Position target)
 	}
 }
 
-void ExampleAIModule::onUnitDiscover(BWAPI::Unit* unit)
+void BWRepDump::onUnitDiscover(BWAPI::Unit* unit)
 {
 	/*
 	if (!Broodwar->isReplay() && Broodwar->getFrameCount()>1)
@@ -571,7 +568,7 @@ void ExampleAIModule::onUnitDiscover(BWAPI::Unit* unit)
 	*/
 }
 
-void ExampleAIModule::onUnitEvade(BWAPI::Unit* unit)
+void BWRepDump::onUnitEvade(BWAPI::Unit* unit)
 {
 	/*
 	if (!Broodwar->isReplay() && Broodwar->getFrameCount()>1)
@@ -579,7 +576,7 @@ void ExampleAIModule::onUnitEvade(BWAPI::Unit* unit)
 	*/
 }
 
-void ExampleAIModule::onUnitShow(BWAPI::Unit* unit)
+void BWRepDump::onUnitShow(BWAPI::Unit* unit)
 {
 	/*
 	if (!Broodwar->isReplay() && Broodwar->getFrameCount()>1)
@@ -587,7 +584,7 @@ void ExampleAIModule::onUnitShow(BWAPI::Unit* unit)
 	*/
 }
 
-void ExampleAIModule::onUnitHide(BWAPI::Unit* unit)
+void BWRepDump::onUnitHide(BWAPI::Unit* unit)
 {
 	/*
 	if (!Broodwar->isReplay() && Broodwar->getFrameCount()>1)
@@ -595,7 +592,7 @@ void ExampleAIModule::onUnitHide(BWAPI::Unit* unit)
 	*/
 }
 
-void ExampleAIModule::onUnitCreate(BWAPI::Unit* unit)
+void BWRepDump::onUnitCreate(BWAPI::Unit* unit)
 {
 	this->unitPositionMap[unit] = unit->getPosition();
 	/*
@@ -641,7 +638,7 @@ void ExampleAIModule::onUnitCreate(BWAPI::Unit* unit)
 	}
 }
 
-void ExampleAIModule::onUnitDestroy(BWAPI::Unit* unit)
+void BWRepDump::onUnitDestroy(BWAPI::Unit* unit)
 {
 	if (!Broodwar->isReplay() && Broodwar->getFrameCount()>1)
 	{
@@ -662,7 +659,7 @@ void ExampleAIModule::onUnitDestroy(BWAPI::Unit* unit)
 	}
 }
 
-void ExampleAIModule::onUnitMorph(BWAPI::Unit* unit)
+void BWRepDump::onUnitMorph(BWAPI::Unit* unit)
 {
 	/*
 	if (!Broodwar->isReplay())
@@ -749,7 +746,7 @@ void ExampleAIModule::onUnitMorph(BWAPI::Unit* unit)
 	}
 }
 
-void ExampleAIModule::onUnitRenegade(BWAPI::Unit* unit)
+void BWRepDump::onUnitRenegade(BWAPI::Unit* unit)
 {
 	//if (Broodwar->isReplay())
 	//Broodwar->printf("A %s [%x] is now owned by %s",unit->getType().getName().c_str(),unit,unit->getPlayer()->getName().c_str());
@@ -773,7 +770,7 @@ void ExampleAIModule::onUnitRenegade(BWAPI::Unit* unit)
 	}
 }
 
-void ExampleAIModule::onSaveGame(std::string gameName)
+void BWRepDump::onSaveGame(std::string gameName)
 {
 	//Broodwar->printf("The game was saved to \"%s\".", gameName.c_str());
 }
@@ -797,7 +794,7 @@ DWORD WINAPI AnalyzeThread()
 	return 0;
 }
 
-void ExampleAIModule::drawStats()
+void BWRepDump::drawStats()
 {
 	std::set<Unit*> myUnits = Broodwar->self()->getUnits();
 	Broodwar->drawTextScreen(5,0,"I have %d units:",myUnits.size());
@@ -818,7 +815,7 @@ void ExampleAIModule::drawStats()
 	}
 }
 
-void ExampleAIModule::drawBullets()
+void BWRepDump::drawBullets()
 {
 	std::set<Bullet*> bullets = Broodwar->getBullets();
 	for(std::set<Bullet*>::iterator i=bullets.begin();i!=bullets.end();i++)
@@ -839,7 +836,7 @@ void ExampleAIModule::drawBullets()
 	}
 }
 
-void ExampleAIModule::drawVisibilityData()
+void BWRepDump::drawVisibilityData()
 {
 	for(int x=0;x<Broodwar->mapWidth();x++)
 	{
@@ -858,7 +855,7 @@ void ExampleAIModule::drawVisibilityData()
 	}
 }
 
-void ExampleAIModule::drawTerrainData()
+void BWRepDump::drawTerrainData()
 {
 	//we will iterate through all the base locations, and draw their outlines.
 	for(std::set<BWTA::BaseLocation*>::const_iterator i=BWTA::getBaseLocations().begin();i!=BWTA::getBaseLocations().end();i++)
@@ -912,7 +909,7 @@ void ExampleAIModule::drawTerrainData()
 	}
 }
 
-void ExampleAIModule::showPlayers()
+void BWRepDump::showPlayers()
 {
 	std::set<Player*> players=Broodwar->getPlayers();
 	for(std::set<Player*>::iterator i=players.begin();i!=players.end();i++)
@@ -921,7 +918,7 @@ void ExampleAIModule::showPlayers()
 	}
 }
 
-void ExampleAIModule::showForces()
+void BWRepDump::showForces()
 {
 	std::set<Force*> forces=Broodwar->getForces();
 	for(std::set<Force*>::iterator i=forces.begin();i!=forces.end();i++)

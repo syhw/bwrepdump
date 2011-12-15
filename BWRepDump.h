@@ -16,7 +16,7 @@ extern BWTA::Region* home;
 extern BWTA::Region* enemy_base;
 DWORD WINAPI AnalyzeThread();
 
-class ExampleAIModule : public BWAPI::AIModule
+class BWRepDump : public BWAPI::AIModule
 {
 	//std::vector<bool> aggroPlayers;
 	std::map<BWAPI::TilePosition, int> chokeDependantRegion;
