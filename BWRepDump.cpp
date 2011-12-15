@@ -85,6 +85,7 @@ void BWRepDump::createChokeDependantRegions()
 				else
 					this->rd.chokeDependantRegion[std::make_pair(x, y)] = region[x + y * Broodwar->mapWidth()];
 			}
+		BUG HERE TODO
 		std::ofstream ofs(buf);
 		{
 			boost::archive::text_oarchive oa(ofs);
@@ -128,7 +129,7 @@ void BWRepDump::onStart()
 	BWTA::analyze();
 	analyzed=false;
 	analysis_just_finished=false;
-	this->createChokeDependantRegions();
+	//this->createChokeDependantRegions();
 
 	show_bullets=false;
 	show_visibility_data=false;
@@ -375,7 +376,7 @@ void BWRepDump::onFrame()
 
 	if (Broodwar->isReplay())
 	{
-		this->displayChokeDependantRegions();
+		// this->displayChokeDependantRegions();
 
 		int resourcesRefreshSpeed = 25;
 		if(Broodwar->getFrameCount() % resourcesRefreshSpeed == 0)
