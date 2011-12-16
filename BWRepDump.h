@@ -34,8 +34,6 @@ struct regions_data
         ar & chokeDependantRegion;
     }
 	// 0 -> unwalkable regions
-	// [1..2^16-1] -> choke dependant regions
-	// [2^16..MAX_INT] -> BWTA regions
 	std::map<int, std::map<int, ChokeDepReg> > chokeDependantRegion;
 	regions_data() 
 	{}

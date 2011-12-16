@@ -47,15 +47,12 @@ void BWRepDump::createChokeDependantRegions()
 		std::vector<int> region(Broodwar->mapWidth() * Broodwar->mapHeight(), -1); // tmp on build tiles coordinates
 		std::vector<int> maxTiles; // max tiles for each CDRegion
 		int k = 1; // 0 is reserved for unwalkable regions
+		/// 1. for each region, max radius = max(MAX_CDREGION_RADIUS, choke size)
 		for each (BWTA::Chokepoint* c in BWTA::getChokepoints())
 		{
-			/// 1. Init 1 region / choke
-			//BWAPI::TilePosition tp(c->getCenter());
-			//region[tp.x() + Broodwar->mapWidth() * tp.y()] = k++;
-			/// 2. for each region, max radius = max(MAX_CDREGION_RADIUS, choke size)
 			maxTiles.push_back(max(MAX_CDREGION_RADIUS, static_cast<int>(c->getWidth())/TILE_SIZE));
 		}
-		/// 3. Voronoi on both choke's regions
+		/// 2. Voronoi on both choke's regions
 		for (int x = 0; x < Broodwar->mapWidth(); ++x)
 			for (int y = 0; y < Broodwar->mapHeight(); ++y)
 			{
@@ -67,18 +64,19 @@ void BWRepDump::createChokeDependantRegions()
 				{
 					// TODO could use ground distance??
 					// something like double tmpDist = BWTA::getGroundDistance(tmp, TilePosition(c->getCenter()));
-					double tmpDist = tmp.getDistance(TilePosition(c->getCenter()));
+					Position chokeCenter(c->getCenter());
+					double tmpDist = tmp.getDistance(TilePosition(chokeCenter));
 					if (tmpDist < minDist && static_cast<int>(tmpDist) <= maxTiles[cpn-1]
 					    && (c->getRegions().first == r || c->getRegions().second == r)
 					)
 					{
 						minDist = tmpDist;
-						region[x + y * Broodwar->mapWidth()] = cpn;
+						region[x + y * Broodwar->mapWidth()] = ((chokeCenter.x()+1) << 16) | chokeCenter.y();
 					}
 					++cpn;
 				}
 			}
-		/// 4. Complete with (amputated) BWTA regions
+		/// 3. Complete with (amputated) BWTA regions
 		// initialize BWTARegion indices
 		for each (BWTA::Region* r in BWTA::getRegions())
 		{
