@@ -10,10 +10,12 @@
 #include <list>
 #include <utility>
 
-#include "boost/archive/text_oarchive.hpp"
-#include "boost/archive/text_iarchive.hpp"
+#include "boost/archive/binary_oarchive.hpp"
+#include "boost/archive/binary_iarchive.hpp"
 #include "boost/serialization/map.hpp"
 #include "boost/serialization/utility.hpp"
+
+#define __DEBUG_OUTPUT__
 
 extern bool analyzed;
 extern bool analysis_just_finished;
@@ -21,6 +23,7 @@ extern BWTA::Region* home;
 extern BWTA::Region* enemy_base;
 DWORD WINAPI AnalyzeThread();
 
+typedef int ChokeDepReg;
 
 struct regions_data
 {
@@ -30,24 +33,33 @@ struct regions_data
     {
         ar & chokeDependantRegion;
     }
-	std::map<std::pair<int, int>, int> chokeDependantRegion;
-	//std::map<int, std::map<int, int> > chokeDependantRegion;
+	// 0 -> unwalkable regions
+	// [1..2^16-1] -> choke dependant regions
+	// [2^16..MAX_INT] -> BWTA regions
+	std::map<int, std::map<int, ChokeDepReg> > chokeDependantRegion;
 	regions_data() 
 	{}
-	regions_data(const std::map<std::pair<int, int>, int>& cdr)
+	regions_data(const std::map<int, std::map<int, ChokeDepReg> >& cdr)
 		: chokeDependantRegion(cdr)
 	{}
 };
 
 BOOST_CLASS_TRACKING(regions_data, boost::serialization::track_never);
+BOOST_CLASS_VERSION(regions_data, 1);
 
 class BWRepDump : public BWAPI::AIModule
 {
 	//std::vector<bool> aggroPlayers;
+
+	// Neither Region* (of course) nor the ordering in the Regions set is
+	// deterministic, so we have a map which maps Region* to a unique int
+	// which is region's center (0)<x Position + 1><y Position>
+	// on                               16 bits      16 bits
 	std::map<BWTA::Region*, int> BWTARegion;
 	regions_data rd;
 	void createChokeDependantRegions();
 	void displayChokeDependantRegions();
+	std::set<BWAPI::Unit*> getUnitsCDRegionPlayer(int cdr, BWAPI::Player* p);
 public:
 	virtual void onStart();
 	virtual void onEnd(bool isWinner);
