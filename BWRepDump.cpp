@@ -85,7 +85,6 @@ void BWRepDump::createChokeDependantRegions()
 				else
 					this->rd.chokeDependantRegion[std::make_pair(x, y)] = region[x + y * Broodwar->mapWidth()];
 			}
-		BUG HERE TODO
 		std::ofstream ofs(buf);
 		{
 			boost::archive::text_oarchive oa(ofs);

@@ -13,12 +13,14 @@
 #include "boost/archive/text_oarchive.hpp"
 #include "boost/archive/text_iarchive.hpp"
 #include "boost/serialization/map.hpp"
+#include "boost/serialization/utility.hpp"
 
 extern bool analyzed;
 extern bool analysis_just_finished;
 extern BWTA::Region* home;
 extern BWTA::Region* enemy_base;
 DWORD WINAPI AnalyzeThread();
+
 
 struct regions_data
 {
@@ -29,12 +31,15 @@ struct regions_data
         ar & chokeDependantRegion;
     }
 	std::map<std::pair<int, int>, int> chokeDependantRegion;
+	//std::map<int, std::map<int, int> > chokeDependantRegion;
 	regions_data() 
 	{}
 	regions_data(const std::map<std::pair<int, int>, int>& cdr)
 		: chokeDependantRegion(cdr)
 	{}
 };
+
+BOOST_CLASS_TRACKING(regions_data, boost::serialization::track_never);
 
 class BWRepDump : public BWAPI::AIModule
 {
