@@ -24,6 +24,7 @@ extern BWTA::Region* enemy_base;
 DWORD WINAPI AnalyzeThread();
 
 typedef int ChokeDepReg;
+struct heuristics_analyser;
 
 struct regions_data
 {
@@ -47,6 +48,8 @@ BOOST_CLASS_VERSION(regions_data, 1);
 
 class BWRepDump : public BWAPI::AIModule
 {
+	friend heuristics_analyser;
+protected:
 	//std::vector<bool> aggroPlayers;
 
 	// Neither Region* (of course) nor the ordering in the Regions set is
@@ -58,6 +61,9 @@ class BWRepDump : public BWAPI::AIModule
 	void createChokeDependantRegions();
 	void displayChokeDependantRegions();
 	std::set<BWAPI::Unit*> getUnitsCDRegionPlayer(int cdr, BWAPI::Player* p);
+	double scoreGround(ChokeDepReg cdr, BWAPI::Player* defender);
+	double scoreAir(ChokeDepReg cdr, BWAPI::Player* defender);
+	double scoreInvis(ChokeDepReg cdr, BWAPI::Player* defender);
 public:
 	virtual void onStart();
 	virtual void onEnd(bool isWinner);

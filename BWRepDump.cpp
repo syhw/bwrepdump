@@ -114,7 +114,7 @@ void BWRepDump::displayChokeDependantRegions()
 		}
 }
 
-std::set<Unit*> getUnitsRegionPlayer(BWTA::Region* r, BWAPI::Player* p)
+/*std::set<Unit*> getUnitsRegionPlayer(BWTA::Region* r, BWAPI::Player* p)
 {
 	std::set<Unit*> tmp;
 	for each (Unit* u in p->getUnits())
@@ -136,7 +136,7 @@ std::set<Unit*> BWRepDump::getUnitsCDRegionPlayer(ChokeDepReg cdr, BWAPI::Player
 			tmp.insert(u);
 	}
 	return tmp;
-}
+}*/
 
 int countWorkingPeons(const std::set<Unit*>& units)
 {
@@ -152,17 +152,166 @@ int countWorkingPeons(const std::set<Unit*>& units)
 	return count;
 }
 
+int countDetectorUnits(const std::set<Unit*>& units)
+{
+	int count = 0;
+	for each (Unit* u in units)
+	{
+		if (u->getType().isDetector())
+			++count;
+	}
+	return count;
+}
+
+double scoreUnitsGround(const std::set<Unit*>& eUnits)
+{
+	double minPrice = 0.0;
+	double gasPrice = 0.0;
+	double supply = 0.0;
+	for each (Unit* u in eUnits)
+	{
+		UnitType ut = u->getType();
+		if (ut.groundWeapon() == WeaponTypes::None
+			&& ut != UnitTypes::Protoss_High_Templar
+			&& ut != UnitTypes::Protoss_Dark_Archon
+			&& ut != UnitTypes::Zerg_Defiler
+			&& ut != UnitTypes::Zerg_Queen
+			&& ut != UnitTypes::Terran_Medic
+			&& ut != UnitTypes::Terran_Science_Vessel
+			&& ut != UnitTypes::Terran_Bunker)
+			continue;
+		minPrice += ut.mineralPrice();
+		gasPrice += ut.gasPrice();
+		supply += ut.supplyRequired();
+		if (ut == UnitTypes::Terran_Siege_Tank_Siege_Mode) // a small boost for sieged tanks and lurkers
+			supply += ut.supplyRequired();
+	}
+	return minPrice + (4.0/3)*gasPrice + 25*supply;
+}
+
+double scoreUnitsAir(const std::set<Unit*>& eUnits)
+{
+	double minPrice = 0.0;
+	double gasPrice = 0.0;
+	double supply = 0.0;
+	for each (Unit* u in eUnits)
+	{
+		UnitType ut = u->getType();
+		if (ut.airWeapon() == WeaponTypes::None
+			&& ut != UnitTypes::Protoss_High_Templar
+			&& ut != UnitTypes::Protoss_Dark_Archon
+			&& ut != UnitTypes::Zerg_Defiler
+			&& ut != UnitTypes::Zerg_Queen
+			&& ut != UnitTypes::Terran_Medic
+			&& ut != UnitTypes::Terran_Science_Vessel
+			&& ut != UnitTypes::Terran_Bunker)
+			continue;
+		minPrice += ut.mineralPrice();
+		gasPrice += ut.gasPrice();
+		supply += ut.supplyRequired();
+	}
+	return minPrice + (4.0/3)*gasPrice + 25*supply;
+}
+
 struct heuristics_analyser
 {
-	std::map<BWTA::Region*, Unit*> unitsByRegion;
-	std::map<ChokeDepReg, Unit*> unitsByCDR;
-	//TODO
+	std::map<BWTA::Region*, std::set<Unit*> > unitsByRegion;
+	std::map<ChokeDepReg, std::set<Unit*> > unitsByCDR;
+	std::map<BWTA::Region*, double> ecoRegion;
+	std::map<ChokeDepReg, double> ecoCDR;
+	std::map<BWTA::Region*, double> tacRegion;
+	std::map<ChokeDepReg, double> tacCDR;
+	std::set<Unit*> emptyUnitsSet;
+
+	heuristics_analyser(Player* p, BWRepDump* bwrepdump)
+	{
+		for each (Unit* u in p->getUnits())
+		{
+			TilePosition tp(u->getTilePosition());
+			BWTA::Region* r = BWTA::getRegion(tp);
+			if (unitsByRegion.count(r))
+				unitsByRegion[r].insert(u);
+			else
+			{
+				std::set<Unit*> tmpSet;
+				tmpSet.insert(u);
+				unitsByRegion.insert(make_pair(r, tmpSet));
+			}
+			ChokeDepReg cdr = bwrepdump->rd.chokeDependantRegion[tp.x()][tp.y()];
+			if (unitsByCDR.count(cdr))
+				unitsByCDR[cdr].insert(u);
+			else
+			{
+				std::set<Unit*> tmpSet;
+				tmpSet.insert(u);
+				unitsByCDR.insert(make_pair(cdr, tmpSet));
+			}
+		}
+	}
+//double scoreDropability(ChokeDepReg cdr, Player* defender)
+//{
+//	just the combination or Air and Ground
+//}
+//
+//double scoreDropability(BWTA::Region* r, Player* defender)
+//{
+//	just the combination or Air and Ground
+//}
+
+	const std::set<Unit*>& getUnitsCDRegionPlayer(ChokeDepReg cdr, Player* p)
+	{
+		if (unitsByCDR.count(cdr))
+			return unitsByCDR[cdr];
+		return emptyUnitsSet;
+	}
+
+	const std::set<Unit*>& getUnitsRegionPlayer(BWTA::Region* r, Player* p)
+	{
+		if (unitsByRegion.count(r))
+			return unitsByRegion[r];
+		return emptyUnitsSet;
+	}
+
+	// ground forces
+	double scoreGround(ChokeDepReg cdr, Player* defender)
+	{
+		return scoreUnitsGround(getUnitsCDRegionPlayer(cdr, defender));
+	}
+	double scoreGround(BWTA::Region* r, Player* defender)
+	{
+		return scoreUnitsGround(getUnitsRegionPlayer(r, defender));
+	}
+
+	// air forces
+	double scoreAir(ChokeDepReg cdr, Player* defender)
+	{
+		return scoreUnitsAir(getUnitsCDRegionPlayer(cdr, defender));
+	}
+	double scoreAir(BWTA::Region* r, Player* defender)
+	{
+		return scoreUnitsAir(getUnitsRegionPlayer(r, defender));
+	}
+
+	// detection
+	double scoreInvis(ChokeDepReg cdr, Player* defender)
+	{
+		return (1.0 / (1.0 + countDetectorUnits(getUnitsCDRegionPlayer(cdr, defender))));
+	}
+	double scoreInvis(BWTA::Region* r, Player* defender)
+	{
+		return (1.0 / (1.0 + countDetectorUnits(getUnitsRegionPlayer(r, defender))));
+	}
+
+	// economy
 	double economicImportance(BWTA::Region* r, BWAPI::Player* p)
 	{
 		for each (BWTA::Region* r in BWTA::getRegions())
 		{
-			 //TODO
 		}
+	}
+
+	double tacticalImportance(BWTA::Region* r, BWAPI::Player* p)
+	{
 	}
 };
 
