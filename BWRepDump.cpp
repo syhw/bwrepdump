@@ -221,6 +221,7 @@ struct heuristics_analyser
 	std::map<ChokeDepReg, double> ecoCDR;
 	std::map<BWTA::Region*, double> tacRegion;
 	std::map<ChokeDepReg, double> tacCDR;
+	std::set<ChokeDepReg> cdrSet;
 	std::set<Unit*> emptyUnitsSet;
 
 	heuristics_analyser(Player* p, BWRepDump* bwrepdump)
@@ -238,6 +239,7 @@ struct heuristics_analyser
 				unitsByRegion.insert(make_pair(r, tmpSet));
 			}
 			ChokeDepReg cdr = bwrepdump->rd.chokeDependantRegion[tp.x()][tp.y()];
+			cdrSet.insert(cdr);
 			if (unitsByCDR.count(cdr))
 				unitsByCDR[cdr].insert(u);
 			else
@@ -305,11 +307,38 @@ struct heuristics_analyser
 	// economy
 	double economicImportance(BWTA::Region* r, BWAPI::Player* p)
 	{
-		for each (BWTA::Region* r in BWTA::getRegions())
+		if (ecoRegion.empty())
 		{
+			double s = 0.0;
+			for each (BWTA::Region* rr in BWTA::getRegions())
+			{
+				int c = countWorkingPeons(getUnitsRegionPlayer(rr, p));
+				ecoRegion.insert(std::make_pair(rr, c));
+				s += c;
+			}
+			for each (BWTA::Region* rr in BWTA::getRegions())
+				ecoRegion[rr] = ecoRegion[rr] / s;
 		}
+		return ecoRegion[r];
+	}
+	double economicImportance(ChokeDepReg cdr, BWAPI::Player* p)
+	{
+		if (ecoCDR.empty())
+		{
+			double s = 0.0;
+			for each (ChokeDepReg cdrr in cdrSet)
+			{
+				int c = countWorkingPeons(getUnitsCDRegionPlayer(cdrr, p));
+				ecoCDR.insert(std::make_pair(cdrr, c));
+				s += c;
+			}
+			for each (ChokeDepReg cdrr in cdrSet)
+				ecoCDR[cdrr] = ecoCDR[cdrr] / s;
+		}
+		return ecoCDR[cdr];
 	}
 
+	// tactic
 	double tacticalImportance(BWTA::Region* r, BWAPI::Player* p)
 	{
 	}
