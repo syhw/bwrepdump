@@ -145,7 +145,6 @@ int countWorkingPeons(const std::set<Unit*>& units)
 	{
 		if (u->getType().isWorker() && 
 			(u->isGatheringGas() || u->isGatheringMinerals()
-			|| u->isCarryingGas() || u->isCarryingMinerals()
 			|| u->isConstructing() || u->isRepairing()))
 			++count;
 	}
@@ -161,6 +160,17 @@ int countDetectorUnits(const std::set<Unit*>& units)
 			++count;
 	}
 	return count;
+}
+
+std::set<Unit*> getTownhalls(const std::set<Unit*>& units)
+{
+	std::set<Unit*> ret;
+	for each (Unit* u in units)
+	{
+		if (u->getType().isResourceDepot())
+			ret.insert(u);
+	}
+	return ret;
 }
 
 double scoreUnitsGround(const std::set<Unit*>& eUnits)
@@ -338,9 +348,27 @@ struct heuristics_analyser
 		return ecoCDR[cdr];
 	}
 
-	// tactic
+	// tactic (w.r.t. ground only)
 	double tacticalImportance(BWTA::Region* r, BWAPI::Player* p)
 	{
+		if (tacRegion.empty())
+		{
+			std::set<Unit*> ths = getTownhalls(p->getUnits());
+			for each (BWTA::Region* rr in BWTA::getRegions())
+			{
+				tacRegion.insert(std::make_pair(rr, 0.0));
+				for each (Unit* th in ths)
+				{
+					BWTA::Region* thr = BWTA::getRegion(th->getTilePosition());
+					if (thr->getReachableRegions().count(rr))
+						tacRegion[rr] += BWTA::getGroundDistance(
+						TilePosition(rr->getCenter()), TilePosition(thr->getCenter()));
+					else
+						tacRegion[rr] += Broodwar->mapHeight() * Broodwar->mapWidth();
+				}
+			}
+		}
+		return tacRegion[r];
 	}
 };
 
@@ -648,24 +676,9 @@ void BWRepDump::onFrame()
 
 		for each(Unit* u in Broodwar->getAllUnits())
 		{
-			UnitType u_workerType;
-			if(u->getPlayer()->getRace() == BWAPI::Races::Zerg)
-			{
-				u_workerType = workerTypes[0];
-			}
-			else if (u->getPlayer()->getRace() == BWAPI::Races::Protoss)
-			{
-				u_workerType = workerTypes[1];
-			}
-			else
-			{
-				u_workerType = workerTypes[2];
-			}
 			bool mining = false;
-			if(u->getType() == u_workerType && (u->isGatheringMinerals() || u->isGatheringGas()))
-			{
+			if(u->getType().isWorker() && (u->isGatheringMinerals() || u->isGatheringGas()))
 				mining = true;
-			}
 
 			bool newOrders = false;
 

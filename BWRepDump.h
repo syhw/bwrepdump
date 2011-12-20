@@ -50,7 +50,7 @@ class BWRepDump : public BWAPI::AIModule
 {
 	friend heuristics_analyser;
 protected:
-	//std::vector<bool> aggroPlayers;
+	std::map<BWAPI::Player*, int> frameAggroPlayers;
 
 	// Neither Region* (of course) nor the ordering in the Regions set is
 	// deterministic, so we have a map which maps Region* to a unique int
