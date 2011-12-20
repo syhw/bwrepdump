@@ -2,6 +2,8 @@
 #include <float.h>
 
 #define MAX_CDREGION_RADIUS 12
+#define SECONDS_SINCE_LAST_ATTACK 30
+#define DISTANCE_TO_OTHER_ATTACK 16 // in build tiles
 
 using namespace BWAPI;
 
@@ -18,6 +20,19 @@ bool fileExists(const char *fileName)
     if (0xFFFFFFFF == fileAttr)
         return false;
     return true;
+}
+
+std::string attackTypeToStr(AttackType at)
+{
+	if (at == DROP)
+		return "DropAttack";
+	else if (at == GROUND)
+		return "GroundAttack";
+	else if (at == AIR)
+		return "AirAttack";
+	else if (at == INVIS)
+		return "InvisAttack";
+	return "UnknownAttackError";
 }
 
 void BWRepDump::createChokeDependantRegions()
@@ -390,6 +405,12 @@ void BWRepDump::onStart()
 	show_visibility_data=false;
 	unitDestroyedThisTurn=false;
 
+	for each (Player* p in activePlayers)
+	{
+		attacksByPlayer.insert(std::make_pair(p, std::list<std::pair<int, BWAPI::Position> >()));
+		lastDropOrderByPlayer.insert(std::make_pair(p, - SECONDS_SINCE_LAST_ATTACK));
+	}
+
 	if (Broodwar->isReplay())
 	{
 		// Broodwar->setLocalSpeed(0);
@@ -631,7 +652,7 @@ void BWRepDump::onFrame()
 
 	if (Broodwar->isReplay())
 	{
-#ifdef __DEBUG_OUTPUT__
+#ifdef __DEBUG_CDR__
 		this->displayChokeDependantRegions();
 		for(std::set<BWTA::Region*>::const_iterator r=BWTA::getRegions().begin();r!=BWTA::getRegions().end();r++)
 		{
@@ -676,6 +697,10 @@ void BWRepDump::onFrame()
 
 		for each(Unit* u in Broodwar->getAllUnits())
 		{
+			if (!u->getType().isBuilding() && u->getType().spaceProvided()
+				&& (u->getOrder() == Orders::Unload || u->getOrder() == Orders::MoveUnload))
+				lastDropOrderByPlayer[u->getPlayer()] = Broodwar->getFrameCount();
+
 			bool mining = false;
 			if(u->getType().isWorker() && (u->isGatheringMinerals() || u->isGatheringGas()))
 				mining = true;
@@ -935,6 +960,86 @@ void BWRepDump::onUnitCreate(BWAPI::Unit* unit)
 	}
 }
 
+void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
+{
+	/// if a unit dies (Unit* u parameter), check for other players who could have
+	/// killed it in a DISTANCE_TO_OTHER_ATTACK radius
+	std::set<Player*> implicated;
+	std::set<AttackType> currentAttackType;
+	for each (Player* p in activePlayers)
+	{
+		if (u->getPlayer() == p)
+			continue;
+		std::set<Unit*> unitsAround = Broodwar->getUnitsInRadius(u->getPosition(), TILE_SIZE*DISTANCE_TO_OTHER_ATTACK);
+		for each (Unit* tmp in unitsAround)
+		{
+			if (tmp->getPlayer() == p)
+			{
+				implicated.insert(p);
+				if (tmp->getType().isFlyer())
+				{
+					/*if (tmp->getType().spaceProvided() > 0
+						&& lastOrdersByPlayer[p].TODOTODO*/
+					/*if (tmp->getType().spaceProvided() > 0 && 
+						(p->getRace() != Races::Zerg || 
+						 //!tmp->getLoadedUnits().empty() ||
+						 p->getUpgradeLevel(UpgradeTypes::Ventral_Sacs)))*/
+					if (tmp->getType().spaceProvided() > 0
+						&& (Broodwar->getFrameCount() - lastDropOrderByPlayer[p]) < 24*SECONDS_SINCE_LAST_ATTACK)
+						currentAttackType.insert(DROP);
+					else if (tmp->getType().canAttack())
+						currentAttackType.insert(AIR);
+				}
+				else // not a flyer
+				{
+					if (tmp->isCloaked() || tmp->isBurrowed())
+						currentAttackType.insert(INVIS);
+					else if (tmp->getType().canAttack())
+						currentAttackType.insert(GROUND);
+				}
+			}
+		}
+	}
+	/// for each implicated player, if their last attack was more than 
+	/// SECONDS_SINCE_LAST_ATTACK ago or farther than DISTANCE_TO_OTHER_ATTACK
+	/// consider that they took part in the attack here
+	for each (Player* p in implicated)
+	{
+		bool newAttack = true;
+		for (std::list<std::pair<int, Position> >::iterator it = attacksByPlayer[p].begin();
+			it != attacksByPlayer[p].end(); )
+		{
+			if (Broodwar->getFrameCount() - it->first < 24*SECONDS_SINCE_LAST_ATTACK
+				&& u->getPosition().getApproxDistance(it->second) < TILE_SIZE*DISTANCE_TO_OTHER_ATTACK)
+			{
+				newAttack = false;
+				// keep track of the continuation of the attack
+				it->first = Broodwar->getFrameCount();
+				it->second = u->getPosition();
+				++it;
+			}
+			else
+			{
+				//  if attack too old and far, remove it (no longer a real attack)
+				if (Broodwar->getFrameCount() - it->first >= 24*SECONDS_SINCE_LAST_ATTACK
+					&& u->getPosition().getApproxDistance(it->second) >= TILE_SIZE*DISTANCE_TO_OTHER_ATTACK)
+					attacksByPlayer[p].erase(it++);
+			}
+		}
+		if (newAttack)
+		{
+			for each (AttackType at in currentAttackType)
+			{
+	#ifdef __DEBUG_OUTPUT__
+				Broodwar->printf("Player %d attacked player %d at Position (%d,%d) type %d, %s",
+					p->getID(), u->getPlayer()->getID(), u->getPosition().x(), u->getPosition().y(), at, attackTypeToStr(at).c_str());
+	#endif
+				this->replayDat << Broodwar->getFrameCount() << "," << p->getID() << "," << attackTypeToStr(at).c_str() << "," << u->getPlayer()->getID() << "," << ",(" << u->getPosition().x() << "," << u->getPosition().y() <<")\n";
+			}
+		}
+	}
+}
+
 void BWRepDump::onUnitDestroy(BWAPI::Unit* unit)
 {
 	if (!Broodwar->isReplay() && Broodwar->getFrameCount()>1)
@@ -943,6 +1048,8 @@ void BWRepDump::onUnitDestroy(BWAPI::Unit* unit)
 	//Broodwar->sendText("A %s [%x] has been destroyed at (%d,%d)",unit->getType().getName().c_str(),unit,unit->getPosition().x(),unit->getPosition().y());
 	else
 	{
+		updateAggroPlayers(unit);
+
 		//Broodwar->sendText("A %s [%x] has been destroyed at (%d,%d)",unit->getType().getName().c_str(),unit,unit->getPosition().x(),unit->getPosition().y());
 		this->replayDat << Broodwar->getFrameCount() << "," << unit->getPlayer()->getID()  << ",Destroyed," << unit->getID() << "," << unit->getType().getName() << ",(" << unit->getPosition().x() << "," << unit->getPosition().y() <<")\n";
 		unitDestroyedThisTurn = true;

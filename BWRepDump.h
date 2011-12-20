@@ -16,6 +16,7 @@
 #include "boost/serialization/utility.hpp"
 
 #define __DEBUG_OUTPUT__
+//#define __DEBUG_CDR__
 
 extern bool analyzed;
 extern bool analysis_just_finished;
@@ -24,6 +25,13 @@ extern BWTA::Region* enemy_base;
 DWORD WINAPI AnalyzeThread();
 
 typedef int ChokeDepReg;
+enum AttackType {
+	DROP,
+	GROUND,
+	AIR,
+	INVIS
+};
+
 struct heuristics_analyser;
 
 struct regions_data
@@ -50,7 +58,11 @@ class BWRepDump : public BWAPI::AIModule
 {
 	friend heuristics_analyser;
 protected:
-	std::map<BWAPI::Player*, int> frameAggroPlayers;
+	// attackByPlayer[p] = (frame, Position)
+	std::map<BWAPI::Player*, std::list<std::pair<int, BWAPI::Position> > > attacksByPlayer;
+	// lastOrdersByPlayer[p] = list of last orders
+	//std::map<BWAPI::Player*, std::list<BWAPI::Order> > lastOrdersByPlayer
+	std::map<BWAPI::Player*, int> lastDropOrderByPlayer;
 
 	// Neither Region* (of course) nor the ordering in the Regions set is
 	// deterministic, so we have a map which maps Region* to a unique int
@@ -81,6 +93,7 @@ public:
 	virtual void onUnitMorph(BWAPI::Unit* unit);
 	virtual void onUnitRenegade(BWAPI::Unit* unit);
 	virtual void onSaveGame(std::string gameName);
+	void updateAggroPlayers(BWAPI::Unit* u);
 	void drawStats(); //not part of BWAPI::AIModule
 	void drawBullets();
 	void drawVisibilityData();
