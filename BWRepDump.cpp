@@ -973,17 +973,14 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 		std::set<Unit*> unitsAround = Broodwar->getUnitsInRadius(u->getPosition(), TILE_SIZE*DISTANCE_TO_OTHER_ATTACK);
 		for each (Unit* tmp in unitsAround)
 		{
-			if (tmp->getPlayer() == p)
+			if (tmp->getPlayer() == p
+				&& tmp->getType().canAttack()
+				&& !tmp->getType().isBuilding() // ruling out tower rushes :(
+				&& !tmp->getType().isWorker())
 			{
 				implicated.insert(p);
 				if (tmp->getType().isFlyer())
 				{
-					/*if (tmp->getType().spaceProvided() > 0
-						&& lastOrdersByPlayer[p].TODOTODO*/
-					/*if (tmp->getType().spaceProvided() > 0 && 
-						(p->getRace() != Races::Zerg || 
-						 //!tmp->getLoadedUnits().empty() ||
-						 p->getUpgradeLevel(UpgradeTypes::Ventral_Sacs)))*/
 					if (tmp->getType().spaceProvided() > 0
 						&& (Broodwar->getFrameCount() - lastDropOrderByPlayer[p]) < 24*SECONDS_SINCE_LAST_ATTACK)
 						currentAttackType.insert(DROP);

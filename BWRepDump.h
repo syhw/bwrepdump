@@ -60,8 +60,6 @@ class BWRepDump : public BWAPI::AIModule
 protected:
 	// attackByPlayer[p] = (frame, Position)
 	std::map<BWAPI::Player*, std::list<std::pair<int, BWAPI::Position> > > attacksByPlayer;
-	// lastOrdersByPlayer[p] = list of last orders
-	//std::map<BWAPI::Player*, std::list<BWAPI::Order> > lastOrdersByPlayer
 	std::map<BWAPI::Player*, int> lastDropOrderByPlayer;
 
 	// Neither Region* (of course) nor the ordering in the Regions set is
