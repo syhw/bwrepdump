@@ -54,12 +54,36 @@ struct regions_data
 BOOST_CLASS_TRACKING(regions_data, boost::serialization::track_never);
 BOOST_CLASS_VERSION(regions_data, 1);
 
+struct attack
+{
+	int frame;
+	BWAPI::Position position;
+	std::map<BWAPI::Player*, std::map<BWAPI::UnitType, int> > unitTypes;
+	BWAPI::Player* defender;
+	attack(int f, BWAPI::Position p, BWAPI::Player* d,
+		std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > units)
+		: frame(f), position(p), defender(d)
+	{
+		for each (std::pair<BWAPI::Player*, std::set<BWAPI::Unit*> > pu in units)
+		{
+			unitTypes.insert(std::make_pair(pu.first, std::map<BWAPI::UnitType, int>()));
+			for each (BWAPI::Unit* u in pu.second)
+			{
+				if (unitTypes[pu.first].count(u->getType()))
+					unitTypes[pu.first][u->getType()] += 1;
+				else
+					unitTypes[pu.first].insert(std::make_pair(u->getType(), 1));
+			}
+		}
+	}
+};
+
 class BWRepDump : public BWAPI::AIModule
 {
 	friend heuristics_analyser;
 protected:
 	// attackByPlayer[p] = (frame, Position)
-	std::map<BWAPI::Player*, std::list<std::pair<int, BWAPI::Position> > > attacksByPlayer;
+	std::list<attack> attacks;
 	std::map<BWAPI::Player*, int> lastDropOrderByPlayer;
 
 	// Neither Region* (of course) nor the ordering in the Regions set is
