@@ -3,7 +3,7 @@
 
 #define MAX_CDREGION_RADIUS 12
 #define SECONDS_SINCE_LAST_ATTACK 30
-#define DISTANCE_TO_OTHER_ATTACK 16 // in build tiles
+#define DISTANCE_TO_OTHER_ATTACK 16 // in build tiles, should perhaps be on a per attack basis
 
 using namespace BWAPI;
 
@@ -275,15 +275,6 @@ struct heuristics_analyser
 			}
 		}
 	}
-//double scoreDropability(ChokeDepReg cdr, Player* defender)
-//{
-//	just the combination or Air and Ground
-//}
-//
-//double scoreDropability(BWTA::Region* r, Player* defender)
-//{
-//	just the combination or Air and Ground
-//}
 
 	const std::set<Unit*>& getUnitsCDRegionPlayer(ChokeDepReg cdr, Player* p)
 	{
@@ -962,49 +953,16 @@ void BWRepDump::onUnitCreate(BWAPI::Unit* unit)
 
 void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 {
-	/// if a unit dies (Unit* u parameter), check for other players who could have
-	/// killed it in a DISTANCE_TO_OTHER_ATTACK radius
-	std::set<Player*> implicated;
-	std::set<AttackType> currentAttackType;
-	for each (Player* p in activePlayers)
+	/// A somewhat biased (because it waits for a unit to die to declare there 
+	/// was an attack) heuristic to detect who attacks who
+
+	/// Check if it an existing attack (a continuation)
+	bool newAttack = true;
+	for each (std::pair<Player*, std::list<std::pair<int, Position> > > playerAttacks 
+		in attacksByPlayer)
 	{
-		if (u->getPlayer() == p)
-			continue;
-		std::set<Unit*> unitsAround = Broodwar->getUnitsInRadius(u->getPosition(), TILE_SIZE*DISTANCE_TO_OTHER_ATTACK);
-		for each (Unit* tmp in unitsAround)
-		{
-			if (tmp->getPlayer() == p
-				&& tmp->getType().canAttack()
-				&& !tmp->getType().isBuilding() // ruling out tower rushes :(
-				&& !tmp->getType().isWorker())
-			{
-				implicated.insert(p);
-				if (tmp->getType().isFlyer())
-				{
-					if (tmp->getType().spaceProvided() > 0
-						&& (Broodwar->getFrameCount() - lastDropOrderByPlayer[p]) < 24*SECONDS_SINCE_LAST_ATTACK)
-						currentAttackType.insert(DROP);
-					else if (tmp->getType().canAttack())
-						currentAttackType.insert(AIR);
-				}
-				else // not a flyer
-				{
-					if (tmp->isCloaked() || tmp->isBurrowed())
-						currentAttackType.insert(INVIS);
-					else if (tmp->getType().canAttack())
-						currentAttackType.insert(GROUND);
-				}
-			}
-		}
-	}
-	/// for each implicated player, if their last attack was more than 
-	/// SECONDS_SINCE_LAST_ATTACK ago or farther than DISTANCE_TO_OTHER_ATTACK
-	/// consider that they took part in the attack here
-	for each (Player* p in implicated)
-	{
-		bool newAttack = true;
-		for (std::list<std::pair<int, Position> >::iterator it = attacksByPlayer[p].begin();
-			it != attacksByPlayer[p].end(); )
+		for (std::list<std::pair<int, Position> >::iterator it = playerAttacks.second.begin();
+			it != playerAttacks.second.end(); )
 		{
 			if (Broodwar->getFrameCount() - it->first < 24*SECONDS_SINCE_LAST_ATTACK
 				&& u->getPosition().getApproxDistance(it->second) < TILE_SIZE*DISTANCE_TO_OTHER_ATTACK)
@@ -1015,24 +973,90 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 				it->second = u->getPosition();
 				++it;
 			}
-			else
-			{
-				//  if attack too old and far, remove it (no longer a real attack)
-				if (Broodwar->getFrameCount() - it->first >= 24*SECONDS_SINCE_LAST_ATTACK
+			else if (Broodwar->getFrameCount() - it->first >= 24*SECONDS_SINCE_LAST_ATTACK
 					&& u->getPosition().getApproxDistance(it->second) >= TILE_SIZE*DISTANCE_TO_OTHER_ATTACK)
-					attacksByPlayer[p].erase(it++);
+			{
+				// if the currently examined attack is too old and too far,
+				// remove it (no longer a real attack)
+				playerAttacks.second.erase(it++);
+			}
+			else
+				++it;
+		}
+	}
+	if (!newAttack)
+		return;
+
+	/// It's a new attack, seek for implicated players
+	std::set<Player*> implicated;
+	std::set<AttackType> currentAttackType;
+	std::set<BWAPI::Player*> defendingPlayers;
+	std::set<Unit*> unitsAround = Broodwar->getUnitsInRadius(u->getPosition(), TILE_SIZE*DISTANCE_TO_OTHER_ATTACK);
+	std::map<Player*, std::set<Unit*> > playerUnits;
+	for each (Player* p in activePlayers)
+		playerUnits.insert(make_pair(p, std::set<Unit*>()));
+	for each (Unit* tmp in unitsAround)
+	{
+		if (tmp->getType().isResourceContainer()) // possible BUG here for close bases
+			defendingPlayers.insert(tmp->getPlayer());
+		playerUnits[tmp->getPlayer()].insert(tmp);
+		// TODO add a "defending not in the base" condition because
+		// there are currently cases with no defenders (middle-of-the-map engagements)
+	}
+
+	/// removes lonely scout (probes, zerglings, obs) dying
+	if (playerUnits[u->getPlayer()].empty())
+		return;
+
+	for each (Player* p in activePlayers)
+	{
+		if (defendingPlayers.count(p))
+			continue;
+		for each (Unit* tmp in playerUnits[p])
+		{
+			UnitType ut = tmp->getType();
+			if (ut.canAttack()
+				&& !ut.isBuilding() // ruling out tower rushes :(
+				&& !ut.isWorker())
+			{
+				implicated.insert(p);
+				if (ut.isFlyer())
+				{
+					if (ut.spaceProvided() > 0
+						&& (Broodwar->getFrameCount() - lastDropOrderByPlayer[p]) < 24*SECONDS_SINCE_LAST_ATTACK)
+						currentAttackType.insert(DROP);
+					else if (ut.canAttack()
+						|| ut == UnitTypes::Terran_Science_Vessel
+						|| ut == UnitTypes::Zerg_Queen)
+						currentAttackType.insert(AIR);
+					// not DROP nor AIR for observers / overlords
+				}
+				else // not a flyer
+				{
+					if (tmp->isCloaked() || tmp->isBurrowed())
+						currentAttackType.insert(INVIS);
+					else if (ut.canAttack())
+						currentAttackType.insert(GROUND);
+				}
 			}
 		}
-		if (newAttack)
+	}
+	/// for each implicated player, if their last attack was more than 
+	/// SECONDS_SINCE_LAST_ATTACK ago or farther than DISTANCE_TO_OTHER_ATTACK
+	/// consider that they took part in the attack here
+	for each (Player* p in implicated)
+	{
+		// add the attack
+		attacksByPlayer[p].push_back(std::make_pair(Broodwar->getFrameCount(), u->getPosition()));
+		
+		// and record it
+		for each (AttackType at in currentAttackType)
 		{
-			for each (AttackType at in currentAttackType)
-			{
-	#ifdef __DEBUG_OUTPUT__
-				Broodwar->printf("Player %d attacked player %d at Position (%d,%d) type %d, %s",
-					p->getID(), u->getPlayer()->getID(), u->getPosition().x(), u->getPosition().y(), at, attackTypeToStr(at).c_str());
-	#endif
-				this->replayDat << Broodwar->getFrameCount() << "," << p->getID() << "," << attackTypeToStr(at).c_str() << "," << u->getPlayer()->getID() << "," << ",(" << u->getPosition().x() << "," << u->getPosition().y() <<")\n";
-			}
+#ifdef __DEBUG_OUTPUT__
+			Broodwar->printf("Player %d attacked player %d at Position (%d,%d) type %d, %s",
+				p->getID(), u->getPlayer()->getID(), u->getPosition().x(), u->getPosition().y(), at, attackTypeToStr(at).c_str());
+#endif
+			this->replayDat << Broodwar->getFrameCount() << "," << p->getID() << "," << attackTypeToStr(at).c_str() << "," << u->getPlayer()->getID() << "," << ",(" << u->getPosition().x() << "," << u->getPosition().y() <<")\n";
 		}
 	}
 }
