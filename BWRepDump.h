@@ -95,6 +95,7 @@ protected:
 	void createChokeDependantRegions();
 	void displayChokeDependantRegions();
 	std::set<BWAPI::Unit*> getUnitsCDRegionPlayer(int cdr, BWAPI::Player* p);
+	std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround);
 	double scoreGround(ChokeDepReg cdr, BWAPI::Player* defender);
 	double scoreAir(ChokeDepReg cdr, BWAPI::Player* defender);
 	double scoreInvis(ChokeDepReg cdr, BWAPI::Player* defender);

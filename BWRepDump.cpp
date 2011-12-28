@@ -2,7 +2,7 @@
 #include <float.h>
 
 #define MAX_CDREGION_RADIUS 12
-#define SECONDS_SINCE_LAST_ATTACK 30
+#define SECONDS_SINCE_LAST_ATTACK 42
 #define DISTANCE_TO_OTHER_ATTACK 16 // in build tiles, should perhaps be on a per attack basis
 
 using namespace BWAPI;
@@ -153,6 +153,29 @@ std::set<Unit*> BWRepDump::getUnitsCDRegionPlayer(ChokeDepReg cdr, BWAPI::Player
 	return tmp;
 }*/
 
+std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > BWRepDump::getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround)
+{
+	std::map<Player*, std::set<Unit*> > playerUnits;
+	for each (Player* p in activePlayers)
+		playerUnits.insert(make_pair(p, std::set<Unit*>()));
+	for each (Unit* tmp in unitsAround)
+	{
+		if (tmp->isGatheringGas() || tmp->isGatheringMinerals()
+			|| tmp->isRepairing() 
+			|| (tmp->getType().isBuilding() && !tmp->getType().canAttack())
+			|| tmp->getType() == UnitTypes::Zerg_Larva
+			|| tmp->getType() == UnitTypes::Zerg_Broodling
+			|| tmp->getType() == UnitTypes::Zerg_Egg
+			|| tmp->getType() == UnitTypes::Zerg_Cocoon
+			|| tmp->getType() == UnitTypes::Protoss_Interceptor
+			|| tmp->getType() == UnitTypes::Protoss_Scarab
+			|| tmp->getType() == UnitTypes::Terran_Nuclear_Missile)
+			continue; // we take only military/aggressive units
+		playerUnits[tmp->getPlayer()].insert(tmp);
+	}
+	return playerUnits;
+}
+
 int countWorkingPeons(const std::set<Unit*>& units)
 {
 	int count = 0;
@@ -186,6 +209,21 @@ std::set<Unit*> getTownhalls(const std::set<Unit*>& units)
 			ret.insert(u);
 	}
 	return ret;
+}
+
+double scoreUnits(const std::set<Unit*>& eUnits)
+{
+	double minPrice = 0.0;
+	double gasPrice = 0.0;
+	double supply = 0.0;
+	for each (Unit* u in eUnits)
+	{
+		UnitType ut = u->getType();
+		minPrice += ut.mineralPrice();
+		gasPrice += ut.gasPrice();
+		supply += ut.supplyRequired();
+	}
+	return minPrice + (4.0/3)*gasPrice + 25*supply;
 }
 
 double scoreUnitsGround(const std::set<Unit*>& eUnits)
@@ -639,6 +677,50 @@ void BWRepDump::onFrame()
 
 	//  if (show_bullets)
 	//    drawBullets();
+	for (std::list<attack>::iterator it = attacks.begin();
+		it != attacks.end(); )
+	{
+		std::map<Player*, std::set<Unit*> > playerUnits = getPlayerMilitaryUnits(
+			Broodwar->getUnitsInRadius(it->position, TILE_SIZE*DISTANCE_TO_OTHER_ATTACK)
+			);
+		if (Broodwar->getFrameCount() - it->frame >= 24*SECONDS_SINCE_LAST_ATTACK)
+		{
+			// Attack is finished, who won the battle ?
+			// TODO modify, currently 2 players (1v1) only
+			BWAPI::Player* winner = NULL;
+			BWAPI::Player* loser = NULL;
+			BWAPI::Player* offender = NULL;
+			for each (std::pair<BWAPI::Player*, std::map<BWAPI::UnitType, int> > p in it->unitTypes)
+			{
+				if (p.first != it->defender)
+					offender = p.first;
+			}
+			if (scoreUnits(playerUnits[it->defender]) * 3 < scoreUnits(playerUnits[offender]))
+			{
+				winner = offender; 
+				loser = it->defender;
+			}
+			else
+			{
+				loser = offender; 
+				winner = it->defender;
+			}
+			if (loser != NULL && winner != NULL)
+			{
+#ifdef __DEBUG_OUTPUT__
+				Broodwar->printf("Player %d (race %s) won the battle against player %d (race %s) at Position (%d,%d)",
+					winner->getID(), winner->getRace().c_str(), 
+					loser->getID(), loser->getRace().c_str(),
+					it->position.x(), it->position.y());
+#endif
+			}
+			// if the currently examined attack is too old and too far,
+			// remove it (no longer a real attack)
+			attacks.erase(it++);
+		}
+		else
+			++it;
+	}
 
 	if (Broodwar->isReplay())
 	{
@@ -654,6 +736,18 @@ void BWRepDump::onFrame()
 				Broodwar->drawLine(CoordinateType::Map,point1.x(),point1.y(),point2.x(),point2.y(),Colors::Green);
 			}
 		}
+#endif
+#ifdef __DEBUG_OUTPUT__
+		char mousePos[100];
+		sprintf_s(mousePos, "%d, %d", 
+			Broodwar->getScreenPosition().x() + Broodwar->getMousePosition().x(), 
+			Broodwar->getScreenPosition().y() + Broodwar->getMousePosition().y());
+		Broodwar->drawTextMouse(12, 0, mousePos);
+		char mouseTilePos[100];
+		sprintf_s(mouseTilePos, "%d, %d", 
+			(Broodwar->getScreenPosition().x() + Broodwar->getMousePosition().x())/32, 
+			(Broodwar->getScreenPosition().y() + Broodwar->getMousePosition().y())/32);
+		Broodwar->drawTextMouse(12, 16, mouseTilePos);
 #endif
 
 		int resourcesRefreshSpeed = 25;
@@ -956,30 +1050,13 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 	/// was an attack) heuristic to detect who attacks who
 
 	/// Initialization
-	std::map<Player*, std::set<Unit*> > playerUnits;
-	std::set<Unit*> unitsAround = Broodwar->getUnitsInRadius(u->getPosition(), TILE_SIZE*DISTANCE_TO_OTHER_ATTACK);
-	for each (Player* p in activePlayers)
-		playerUnits.insert(make_pair(p, std::set<Unit*>()));
-	for each (Unit* tmp in unitsAround)
-	{
-		if (tmp->isGatheringGas() || tmp->isGatheringMinerals()
-			|| tmp->isRepairing() 
-			|| (tmp->getType().isBuilding() && !tmp->getType().canAttack())
-			|| tmp->getType() == UnitTypes::Zerg_Larva
-			|| tmp->getType() == UnitTypes::Zerg_Broodling
-			|| tmp->getType() == UnitTypes::Zerg_Egg
-			|| tmp->getType() == UnitTypes::Zerg_Cocoon
-			|| tmp->getType() == UnitTypes::Protoss_Interceptor
-			|| tmp->getType() == UnitTypes::Protoss_Scarab
-			|| tmp->getType() == UnitTypes::Terran_Nuclear_Missile)
-			continue; // we take only military/aggressive units
-		playerUnits[tmp->getPlayer()].insert(tmp);
-	}
+	std::set<BWAPI::Unit*>& unitsAround = Broodwar->getUnitsInRadius(u->getPosition(), TILE_SIZE*DISTANCE_TO_OTHER_ATTACK);
+	std::map<Player*, std::set<Unit*> > playerUnits = getPlayerMilitaryUnits(unitsAround);
 
 	/// Check if it an existing attack (a continuation)
 	bool newAttack = true;
 	for (std::list<attack>::iterator it = attacks.begin();
-		it != attacks.end(); )
+		it != attacks.end(); ++it)
 	{
 		if (Broodwar->getFrameCount() - it->frame < 24*SECONDS_SINCE_LAST_ATTACK
 			&& u->getPosition().getApproxDistance(it->position) < TILE_SIZE*DISTANCE_TO_OTHER_ATTACK)
@@ -990,24 +1067,6 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 			it->position = u->getPosition();
 			break;
 		}
-		else if (Broodwar->getFrameCount() - it->frame >= 24*SECONDS_SINCE_LAST_ATTACK
-				&& u->getPosition().getApproxDistance(it->position) >= TILE_SIZE*DISTANCE_TO_OTHER_ATTACK)
-		{
-			// Attack is finished, who won the battle ?
-//			if (playerUnits[u->getPlayer()].size()*3 + 1 < playerUnits.)
-//			{
-//#ifdef __DEBUG_OUTPUT__
-//				Broodwar->printf("Player %d won the battle against player %d at Position (%d,%d)",
-//					u->getLastAttackingPlayer()->getID(), u->getPlayer()->getID(), it->position.x(), it->position.y());
-//#endif
-//				// currentAttack;
-//			}
-			// if the currently examined attack is too old and too far,
-			// remove it (no longer a real attack)
-			attacks.erase(it++);
-		}
-		else
-			++it;
 	}
 
 	/// Not a new attack, nothing more to record
