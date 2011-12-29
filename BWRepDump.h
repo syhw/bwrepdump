@@ -56,15 +56,18 @@ BOOST_CLASS_VERSION(regions_data, 1);
 
 struct attack
 {
+	std::set<AttackType> types;
 	int frame;
 	BWAPI::Position position;
+	double radius;
 	std::map<BWAPI::Player*, std::map<BWAPI::UnitType, int> > unitTypes;
 	BWAPI::Player* defender;
-	attack(int f, BWAPI::Position p, BWAPI::Player* d,
-		std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > units)
-		: frame(f), position(p), defender(d)
+	attack(const std::set<AttackType>& at, 
+		int f, BWAPI::Position p, double r, BWAPI::Player* d,
+		std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > units)
+		: types(at), frame(f), position(p), radius(r), defender(d)
 	{
-		for each (std::pair<BWAPI::Player*, std::set<BWAPI::Unit*> > pu in units)
+		for each (std::pair<BWAPI::Player*, std::list<BWAPI::Unit*> > pu in units)
 		{
 			unitTypes.insert(std::make_pair(pu.first, std::map<BWAPI::UnitType, int>()));
 			for each (BWAPI::Unit* u in pu.second)
@@ -95,7 +98,7 @@ protected:
 	void createChokeDependantRegions();
 	void displayChokeDependantRegions();
 	std::set<BWAPI::Unit*> getUnitsCDRegionPlayer(int cdr, BWAPI::Player* p);
-	std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround);
+	std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround);
 	double scoreGround(ChokeDepReg cdr, BWAPI::Player* defender);
 	double scoreAir(ChokeDepReg cdr, BWAPI::Player* defender);
 	double scoreInvis(ChokeDepReg cdr, BWAPI::Player* defender);
@@ -117,6 +120,7 @@ public:
 	virtual void onUnitRenegade(BWAPI::Unit* unit);
 	virtual void onSaveGame(std::string gameName);
 	void updateAggroPlayers(BWAPI::Unit* u);
+	void updateAttacks();
 	void drawStats(); //not part of BWAPI::AIModule
 	void drawBullets();
 	void drawVisibilityData();
