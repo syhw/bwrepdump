@@ -60,8 +60,20 @@ struct attack
 	int frame;
 	BWAPI::Position position;
 	double radius;
-	std::map<BWAPI::Player*, std::map<BWAPI::UnitType, int> > unitTypes;
+	std::map<BWAPI::Player*, std::map<BWAPI::UnitType, int> > unitTypes; // countain the maximum number of units of each type which "engaged" in the attack
+	std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > battleUnits;
 	BWAPI::Player* defender;
+	void addUnit(BWAPI::Unit* u)
+	{
+		if (!battleUnits[u->getPlayer()].count(u))
+		{
+			if (unitTypes[u->getPlayer()].count(u->getType()))
+				unitTypes[u->getPlayer()][u->getType()] += 1;
+			else
+				unitTypes[u->getPlayer()].insert(std::make_pair(u->getType(), 1));
+			battleUnits[u->getPlayer()].insert(u);
+		}
+	}
 	attack(const std::set<AttackType>& at, 
 		int f, BWAPI::Position p, double r, BWAPI::Player* d,
 		std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > units)
@@ -70,13 +82,9 @@ struct attack
 		for each (std::pair<BWAPI::Player*, std::list<BWAPI::Unit*> > pu in units)
 		{
 			unitTypes.insert(std::make_pair(pu.first, std::map<BWAPI::UnitType, int>()));
+			battleUnits.insert(std::make_pair(pu.first, std::set<BWAPI::Unit*>()));
 			for each (BWAPI::Unit* u in pu.second)
-			{
-				if (unitTypes[pu.first].count(u->getType()))
-					unitTypes[pu.first][u->getType()] += 1;
-				else
-					unitTypes[pu.first].insert(std::make_pair(u->getType(), 1));
-			}
+				addUnit(u);
 		}
 	}
 };
