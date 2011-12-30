@@ -160,6 +160,8 @@ std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > BWRepDump::getPlayerMilitaryU
 		playerUnits.insert(make_pair(p, std::list<Unit*>()));
 	for each (Unit* tmp in unitsAround)
 	{
+		if (tmp->getPlayer()->isNeutral() || tmp->getPlayer()->isObserver())
+			continue;
 		if (tmp->isGatheringGas() || tmp->isGatheringMinerals()
 			|| tmp->isRepairing() 
 			|| (tmp->getType().isBuilding() && !tmp->getType().canAttack())
@@ -1092,15 +1094,15 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 	/// was an attack) heuristic to detect who attacks who
 
 	/// Initialization
-	std::set<BWAPI::Unit*>& unitsAround = Broodwar->getUnitsInRadius(u->getPosition(), DISTANCE_TO_OTHER_ATTACK);
-	std::map<Player*, std::list<Unit*> > playerUnits = getPlayerMilitaryUnits(unitsAround);
+	std::map<Player*, std::list<Unit*> > playerUnits = getPlayerMilitaryUnits(
+		Broodwar->getUnitsInRadius(u->getPosition(), DISTANCE_TO_OTHER_ATTACK));
 
 	/// Check if it is part of an existing attack (a continuation)
 	for (std::list<attack>::iterator it = attacks.begin();
 		it != attacks.end(); ++it)
 	{
 		if (Broodwar->getFrameCount() - it->frame < 24*SECONDS_SINCE_LAST_ATTACK
-			&& u->getPosition().getApproxDistance(it->position) < it->radius)
+			&& u->getPosition().getApproxDistance(it->position) < DISTANCE_TO_OTHER_ATTACK)
 			return;
 	}
 	
@@ -1114,14 +1116,17 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 	std::map<BWAPI::Player*, int> scorePlayersPosition;
 	for each (Player* p in activePlayers)
 		scorePlayersPosition.insert(std::make_pair(p, 0)); // could put a prior on the start location distance
-	for each (Unit* tmp in unitsAround)
+	for each (Player* p in activePlayers)
 	{
-		if (tmp->getType().isResourceContainer())
-			scorePlayersPosition[tmp->getPlayer()] += 12;
-		else if (tmp->getType().isWorker())
-			scorePlayersPosition[tmp->getPlayer()] += 1;
-		else if (tmp->getType() == UnitTypes::Terran_Siege_Tank_Siege_Mode)
-			scorePlayersPosition[tmp->getPlayer()] += 1;
+		for each (Unit* tmp in playerUnits[p])
+		{
+			if (tmp->getType().isResourceContainer())
+				scorePlayersPosition[p] += 12;
+			else if (tmp->getType().isWorker())
+				scorePlayersPosition[p] += 1;
+			else if (tmp->getType() == UnitTypes::Terran_Siege_Tank_Siege_Mode)
+				scorePlayersPosition[p] += 1;
+		}
 	}
 	Player* defender = NULL;
 	int maxScore = 0;
