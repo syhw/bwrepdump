@@ -764,6 +764,7 @@ void BWRepDump::updateAttacks()
 					loser->getName().c_str(), loser->getRace().c_str(),
 					it->position.x(), it->position.y());
 #endif
+				/// TODO format replayDat << 
 			}
 			// if the currently examined attack is too old and too far,
 			// remove it (no longer a real attack)
