@@ -22,6 +22,16 @@ bool fileExists(const char *fileName)
     return true;
 }
 
+int hashRegionCenter(BWTA::Region* r)
+{
+	/// Max size for a map is 512x512 build tiles => 512*32 = 16384 = 2^14 pixels
+	/// Unwalkable regions will map to 0
+	Position p(r->getPolygon().getCenter());
+	int tmp = p.x() + 1; // + 1 to give room for choke dependant regions (after shifting)
+	tmp = (tmp << 16) | p.y();
+	return tmp;
+}
+
 std::string attackTypeToStr(AttackType at)
 {
 	if (at == DROP)
@@ -48,14 +58,7 @@ void BWRepDump::createChokeDependantRegions()
 
 		// initialize BWTARegion indices
 		for each (BWTA::Region* r in BWTA::getRegions())
-		{
-			/// Max size for a map is 512x512 build tiles => 512*32 = 16384 = 2^14 pixels
-			/// Unwalkable regions will map to 0
-			Position p(r->getPolygon().getCenter());
-			int tmp = p.x() + 1; // + 1 to give room for choke dependant regions (after shifting)
-			tmp = (tmp << 16) | p.y();
-			BWTARegion.insert(std::make_pair(r, tmp));
-		}
+			BWTARegion.insert(std::make_pair(r, hashRegionCenter(r)));
 	}
 	else
 	{
@@ -443,7 +446,9 @@ void BWRepDump::onStart()
 
 	if (Broodwar->isReplay())
 	{
-		// Broodwar->setLocalSpeed(0);
+		//Broodwar->setLocalSpeed(0);
+		Broodwar->setLatCom(false);
+		//Broodwar->setFrameSkip(0);
 		std::ofstream myfile;
 		std::string filepath = Broodwar->mapPathName() + ".rgd";
 		std::string locationfilepath = Broodwar->mapPathName() + ".rld";
