@@ -16,7 +16,7 @@
 #include "boost/serialization/utility.hpp"
 
 #define __DEBUG_OUTPUT__
-//#define __DEBUG_CDR__
+#define __DEBUG_CDR__
 
 extern bool analyzed;
 extern bool analysis_just_finished;
@@ -58,6 +58,7 @@ struct attack
 {
 	std::set<AttackType> types;
 	int frame;
+	int firstFrame;
 	BWAPI::Position position;
 	double radius;
 	std::map<BWAPI::Player*, std::map<BWAPI::UnitType, int> > unitTypes; // countain the maximum number of units of each type which "engaged" in the attack
@@ -77,7 +78,7 @@ struct attack
 	attack(const std::set<AttackType>& at, 
 		int f, BWAPI::Position p, double r, BWAPI::Player* d,
 		std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > units)
-		: types(at), frame(f), position(p), radius(r), defender(d)
+		: types(at), frame(f), firstFrame(Broodwar->getFrameCount()), position(p), radius(r), defender(d)
 	{
 		for each (std::pair<BWAPI::Player*, std::list<BWAPI::Unit*> > pu in units)
 		{
@@ -147,6 +148,8 @@ public:
 	std::ofstream replayLocationDat;
 	std::ofstream replayOrdersDat;
 	std::map<BWAPI::Unit*, BWAPI::Position> unitPositionMap;
+	std::map<BWAPI::Unit*, ChokeDepReg> unitCDR;
+	std::map<BWAPI::Unit*, BWTA::Region*> unitRegion;
 
 	std::map<BWAPI::Unit*, BWAPI::Order> unitOrders;
 	std::map<BWAPI::Unit*, BWAPI::Unit*> unitOrdersTargets;

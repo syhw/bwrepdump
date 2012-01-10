@@ -764,7 +764,11 @@ void BWRepDump::updateAttacks()
 					loser->getName().c_str(), loser->getRace().c_str(),
 					it->position.x(), it->position.y());
 #endif
-				/// TODO format replayDat << 
+				std::string tmpType("(");
+				for each (AttackType t in it->types)
+					tmpType += string(t) + ",";
+				tmpType[tmpType.size()-1] = ')';
+				replayDat << it->firstFrame << "," << winner->getID() << "Attack," << tmpType << <<  Broodwar->getFrameCount() << "," << 
 			}
 			// if the currently examined attack is too old and too far,
 			// remove it (no longer a real attack)
@@ -921,6 +925,18 @@ void BWRepDump::onFrame()
 					Position p = u->getPosition();
 					this->unitPositionMap[u] = p;
 					this->replayLocationDat << Broodwar->getFrameCount() << "," << u->getID() << "," << p.x() << "," << p.y() << "\n";
+					if (unitCDR[u] != rd.chokeDependantRegion[p.x()][p.y()])
+					{
+						ChokeDepReg r = rd.chokeDependantRegion[p.x()][p.y()];
+						unitCDR[u] = r;
+						this->replayLocationDat << Broodwar->getFrameCount() << "," << u->getID() << ",CDR," << r << "\n";
+					}
+					if (unitRegion[u] != BWTA::getRegion(p))
+					{
+						BWTA::Region* r = BWTA::getRegion(p);
+						unitRegion[u] = r;
+						this->replayLocationDat << Broodwar->getFrameCount() << "," << u->getID() << ",Region," << hashRegionCenter(r) << "\n";
+					}
 				}
 			}
 		}
@@ -1064,7 +1080,10 @@ void BWRepDump::onUnitHide(BWAPI::Unit* unit)
 
 void BWRepDump::onUnitCreate(BWAPI::Unit* unit)
 {
-	this->unitPositionMap[unit] = unit->getPosition();
+	BWAPI::Position p = unit->getPosition();
+	this->unitPositionMap[unit] = p;
+	this->unitCDR[unit] = rd.chokeDependantRegion[p.x()][p.y()];
+	this->unitRegion[unit] = BWTA::getRegion(p);
 	/*
 	if (Broodwar->getFrameCount()>1)
 	{
