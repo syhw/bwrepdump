@@ -24,6 +24,23 @@ extern BWTA::Region* home;
 extern BWTA::Region* enemy_base;
 DWORD WINAPI AnalyzeThread();
 
+/*struct PathAwareMaps
+{
+    friend class boost::serialization::access;
+	template <class archive>
+    void serialize(archive & ar, const unsigned int version)
+    {
+        ar & regionsPFCenters;
+		ar & distRegions;
+        ar & distBaseToBase;
+    }
+	std::map<int, std::map<int, double> > distRegions; // distRegions[R1][R2] w.r.t regionsPFCenters
+	std::map<int, std::map<int, double> > distBaseToBase;
+};
+
+BOOST_CLASS_TRACKING(PathAwareMaps, boost::serialization::track_never);
+BOOST_CLASS_VERSION(PathAwareMaps, 1);*/
+
 typedef int ChokeDepReg;
 enum AttackType {
 	DROP,
@@ -60,6 +77,7 @@ struct attack
 	int frame;
 	int firstFrame;
 	BWAPI::Position position;
+	BWAPI::Position initPosition;
 	double radius;
 	std::map<BWAPI::Player*, std::map<BWAPI::UnitType, int> > unitTypes; // countain the maximum number of units of each type which "engaged" in the attack
 	std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > battleUnits;
@@ -78,7 +96,7 @@ struct attack
 	attack(const std::set<AttackType>& at, 
 		int f, BWAPI::Position p, double r, BWAPI::Player* d,
 		std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > units)
-		: types(at), frame(f), firstFrame(Broodwar->getFrameCount()), position(p), radius(r), defender(d)
+		: types(at), frame(f), firstFrame(BWAPI::Broodwar->getFrameCount()), position(p), initPosition(p), radius(r), defender(d)
 	{
 		for each (std::pair<BWAPI::Player*, std::list<BWAPI::Unit*> > pu in units)
 		{

@@ -1,5 +1,6 @@
 #include "BWRepDump.h"
 #include <float.h>
+#include <sstream>
 
 #define MAX_CDREGION_RADIUS 12
 #define SECONDS_SINCE_LAST_ATTACK 20
@@ -20,6 +21,13 @@ bool fileExists(const char *fileName)
     if (0xFFFFFFFF == fileAttr)
         return false;
     return true;
+}
+
+std::string convertInt(int number)
+{
+	std::stringstream ss;
+	ss << number;
+	return ss.str();
 }
 
 int hashRegionCenter(BWTA::Region* r)
@@ -131,30 +139,6 @@ void BWRepDump::displayChokeDependantRegions()
 			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+16, "%d", this->BWTARegion[BWTA::getRegion(TilePosition(x, y))]);
 		}
 }
-
-/*std::set<Unit*> getUnitsRegionPlayer(BWTA::Region* r, BWAPI::Player* p)
-{
-	std::set<Unit*> tmp;
-	for each (Unit* u in p->getUnits())
-	{
-		TilePosition tp(u->getTilePosition());
-		if (BWTA::getRegion(tp) == r)
-			tmp.insert(u);
-	}
-	return tmp;
-}
-
-std::set<Unit*> BWRepDump::getUnitsCDRegionPlayer(ChokeDepReg cdr, BWAPI::Player* p)
-{
-	std::set<Unit*> tmp;
-	for each (Unit* u in p->getUnits())
-	{
-		TilePosition tp(u->getTilePosition());
-		if (rd.chokeDependantRegion[tp.x()][tp.y()] == cdr)
-			tmp.insert(u);
-	}
-	return tmp;
-}*/
 
 std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > BWRepDump::getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround)
 {
@@ -283,6 +267,7 @@ double scoreUnitsAir(const std::set<Unit*>& eUnits)
 
 struct heuristics_analyser
 {
+	BWAPI::Player* p;
 	std::map<BWTA::Region*, std::set<Unit*> > unitsByRegion;
 	std::map<ChokeDepReg, std::set<Unit*> > unitsByCDR;
 	std::map<BWTA::Region*, double> ecoRegion;
@@ -292,7 +277,8 @@ struct heuristics_analyser
 	std::set<ChokeDepReg> cdrSet;
 	std::set<Unit*> emptyUnitsSet;
 
-	heuristics_analyser(Player* p, BWRepDump* bwrepdump)
+	heuristics_analyser(Player* pl, BWRepDump* bwrepdump)
+		: p(pl)
 	{
 		for each (Unit* u in p->getUnits())
 		{
@@ -319,14 +305,14 @@ struct heuristics_analyser
 		}
 	}
 
-	const std::set<Unit*>& getUnitsCDRegionPlayer(ChokeDepReg cdr, Player* p)
+	const std::set<Unit*>& getUnitsCDRegion(ChokeDepReg cdr)
 	{
 		if (unitsByCDR.count(cdr))
 			return unitsByCDR[cdr];
 		return emptyUnitsSet;
 	}
 
-	const std::set<Unit*>& getUnitsRegionPlayer(BWTA::Region* r, Player* p)
+	const std::set<Unit*>& getUnitsRegion(BWTA::Region* r)
 	{
 		if (unitsByRegion.count(r))
 			return unitsByRegion[r];
@@ -334,44 +320,44 @@ struct heuristics_analyser
 	}
 
 	// ground forces
-	double scoreGround(ChokeDepReg cdr, Player* defender)
+	double scoreGround(ChokeDepReg cdr)
 	{
-		return scoreUnitsGround(getUnitsCDRegionPlayer(cdr, defender));
+		return scoreUnitsGround(getUnitsCDRegion(cdr));
 	}
-	double scoreGround(BWTA::Region* r, Player* defender)
+	double scoreGround(BWTA::Region* r)
 	{
-		return scoreUnitsGround(getUnitsRegionPlayer(r, defender));
+		return scoreUnitsGround(getUnitsRegion(r));
 	}
 
 	// air forces
-	double scoreAir(ChokeDepReg cdr, Player* defender)
+	double scoreAir(ChokeDepReg cdr)
 	{
-		return scoreUnitsAir(getUnitsCDRegionPlayer(cdr, defender));
+		return scoreUnitsAir(getUnitsCDRegion(cdr));
 	}
-	double scoreAir(BWTA::Region* r, Player* defender)
+	double scoreAir(BWTA::Region* r)
 	{
-		return scoreUnitsAir(getUnitsRegionPlayer(r, defender));
+		return scoreUnitsAir(getUnitsRegion(r));
 	}
 
 	// detection
-	double scoreInvis(ChokeDepReg cdr, Player* defender)
+	double scoreInvis(ChokeDepReg cdr)
 	{
-		return (1.0 / (1.0 + countDetectorUnits(getUnitsCDRegionPlayer(cdr, defender))));
+		countDetectorUnits(getUnitsCDRegion(cdr))));
 	}
-	double scoreInvis(BWTA::Region* r, Player* defender)
+	double scoreInvis(BWTA::Region* r)
 	{
-		return (1.0 / (1.0 + countDetectorUnits(getUnitsRegionPlayer(r, defender))));
+		countDetectorUnits(getUnitsRegion(r))));
 	}
 
 	// economy
-	double economicImportance(BWTA::Region* r, BWAPI::Player* p)
+	double economicImportance(BWTA::Region* r)
 	{
 		if (ecoRegion.empty())
 		{
 			double s = 0.0;
 			for each (BWTA::Region* rr in BWTA::getRegions())
 			{
-				int c = countWorkingPeons(getUnitsRegionPlayer(rr, p));
+				int c = countWorkingPeons(getUnitsRegion(rr));
 				ecoRegion.insert(std::make_pair(rr, c));
 				s += c;
 			}
@@ -380,14 +366,14 @@ struct heuristics_analyser
 		}
 		return ecoRegion[r];
 	}
-	double economicImportance(ChokeDepReg cdr, BWAPI::Player* p)
+	double economicImportance(ChokeDepReg cdr)
 	{
 		if (ecoCDR.empty())
 		{
 			double s = 0.0;
 			for each (ChokeDepReg cdrr in cdrSet)
 			{
-				int c = countWorkingPeons(getUnitsCDRegionPlayer(cdrr, p));
+				int c = countWorkingPeons(getUnitsCDRegion(cdrr));
 				ecoCDR.insert(std::make_pair(cdrr, c));
 				s += c;
 			}
@@ -397,27 +383,31 @@ struct heuristics_analyser
 		return ecoCDR[cdr];
 	}
 
-	// tactic (w.r.t. ground only)
-	double tacticalImportance(BWTA::Region* r, BWAPI::Player* p)
+	/// tactical importance = normalized relative importance of sum of the square distances
+	/// from this region to the baseS of the player + from this region to the mean position of his army
+	double tacticalImportance(BWTA::Region* r)
 	{
-		if (tacRegion.empty())
+		/// TODO
+		std::set<Unit*> ths = getTownhalls(p->getUnits());
+		for each (BWTA::Region* rr in BWTA::getRegions())
 		{
-			std::set<Unit*> ths = getTownhalls(p->getUnits());
-			for each (BWTA::Region* rr in BWTA::getRegions())
+			tacRegion.insert(std::make_pair(rr, 0.0));
+			for each (Unit* th in ths)
 			{
-				tacRegion.insert(std::make_pair(rr, 0.0));
-				for each (Unit* th in ths)
-				{
-					BWTA::Region* thr = BWTA::getRegion(th->getTilePosition());
-					if (thr->getReachableRegions().count(rr))
-						tacRegion[rr] += BWTA::getGroundDistance(
-						TilePosition(rr->getCenter()), TilePosition(thr->getCenter()));
-					else
-						tacRegion[rr] += Broodwar->mapHeight() * Broodwar->mapWidth();
-				}
+				BWTA::Region* thr = BWTA::getRegion(th->getTilePosition());
+				if (thr->getReachableRegions().count(rr))
+					tacRegion[rr] += BWTA::getGroundDistance(
+					TilePosition(rr->getCenter()), TilePosition(thr->getCenter()));
+				else
+					tacRegion[rr] += Broodwar->mapHeight() * Broodwar->mapWidth();
 			}
 		}
 		return tacRegion[r];
+	}
+
+	double tacticalImportance(ChokeDepReg cdr)
+	{
+		/// TODO
 	}
 };
 
@@ -764,11 +754,53 @@ void BWRepDump::updateAttacks()
 					loser->getName().c_str(), loser->getRace().c_str(),
 					it->position.x(), it->position.y());
 #endif
-				std::string tmpType("(");
+				std::string tmpAttackType("(");
 				for each (AttackType t in it->types)
-					tmpType += string(t) + ",";
-				tmpType[tmpType.size()-1] = ')';
-				replayDat << it->firstFrame << "," << winner->getID() << "Attack," << tmpType << <<  Broodwar->getFrameCount() << "," << 
+					tmpAttackType += attackTypeToStr(t) + ",";
+				tmpAttackType[tmpAttackType.size()-1] = ')';
+				std::string tmpUnitTypes("[");
+				for each (std::pair<BWAPI::Player*, std::map<BWAPI::UnitType, int> > put in it->unitTypes)
+				{
+					std::string tmpUnitTypesPlayer("{");
+					for each (std::pair<BWAPI::UnitType, int> pp in put.second)
+						tmpUnitTypesPlayer += "(" + pp.first.getName() + ":" + convertInt(pp.second) + "),";
+					tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] = '}';
+					tmpUnitTypes += convertInt(put.first->getID()) + tmpUnitTypesPlayer + ",";
+				}
+				tmpUnitTypes[tmpUnitTypes.size()-1] = ']';
+				std::string tmpUnitTypesEnd("[");
+				for each (std::pair<BWAPI::Player*, std::set<BWAPI::Unit*> > pu in it->battleUnits)
+				{
+					std::map<BWAPI::UnitType, int> tmp;
+					for each (BWAPI::Unit* u in pu.second)
+					{
+						if (tmp.count(u->getType()))
+							tmp[u->getType()] += 1;
+						else
+							tmp.insert(std::make_pair(u->getType(), 1));
+					}
+					std::string tmpUnitTypesPlayer("{");
+					for each (std::pair<BWAPI::UnitType, int> pp in tmp)
+						tmpUnitTypesPlayer += "(" + pp.first.getName() + ":" + convertInt(pp.second) + "),";
+					tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] = '}';
+					tmpUnitTypesEnd += convertInt(put.first->getID()) + tmpUnitTypesPlayer + ",";
+				}
+				tmpUnitTypesEnd[tmpUnitTypesEnd.size()-1] = ']';
+				ChokeDepReg cdr = rd.chokeDependantRegion[it->initPosition.x()][it->initPosition.y()];
+				BWTA::Region* r = BWTA::getRegion(it->initPosition);
+				heuristics_analyser ha(it->defender, this);
+				/// $firstFrame, $defenderId, isAttacked, $attackType, 
+				/// ($initPosition.x, $initPosition.y), [$playerId{$type:$maxNumberInvolved}], 
+				/// ($scoreGroundCDR, $scoreGroundRegion, $scoreAirCDR, $scoreAirRegion, $scoreDetectCDR, $scoreDetectRegion,
+				/// $ecoImportanceCDR, $ecoImportanceRegion, $tactImportanceCDR, $tactImportanceRegion),
+				/// [$playerId{$type:$numberAtEnd}], ($lastPosition.x, $lastPosition.y) ,$lastFrame, $winnerId
+				replayDat << it->firstFrame << "," << it->defender->getID() << "IsAttacked," << tmpAttackType << ",("
+					<< it->initPosition.x() << "," << it->initPosition.y() << ")," << tmpUnitTypes << ",("
+					<< scoreGround(cdr, it->defender) << "," << scoreGround(r, it->defender) << ","
+					<< scoreAir(cdr, it->defender) << "," << scoreAir(r, it->defender) << ","
+					<< scoreDetect(cdr, it->defender) << "," << scoreDetect(r, it->defender) << ","
+					<< economicImportance(cdr, it->defender) << "," << economicImportance(r, it->defender) << ","
+				    << ")," << tmpUnitTypesEnd << ",(" << it->position.x() << "," << it->position.y() << ")," << Broodwar->getFrameCount() << "," << winner->getID() << "\n";
 			}
 			// if the currently examined attack is too old and too far,
 			// remove it (no longer a real attack)
