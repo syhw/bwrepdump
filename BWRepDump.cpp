@@ -40,6 +40,12 @@ int hashRegionCenter(BWTA::Region* r)
 	return tmp;
 }
 
+BWAPI::Position cdrCenter(ChokeDepReg c)
+{
+	return Position(((0xFFFF000 & c) >> 16) - 1, 0x0000FFFF & c);
+}
+
+
 std::string attackTypeToStr(AttackType at)
 {
 	if (at == DROP)
@@ -56,6 +62,7 @@ std::string attackTypeToStr(AttackType at)
 void BWRepDump::createChokeDependantRegions()
 {
 	char buf[1000];
+	char buf2[1000];
 	sprintf_s(buf, "bwapi-data/AI/terrain/%s.cdreg", BWAPI::Broodwar->mapHash().c_str());
 	if (fileExists(buf))
 	{	
@@ -64,9 +71,10 @@ void BWRepDump::createChokeDependantRegions()
 		boost::archive::binary_iarchive ia(ifs);
 		ia >> rd;
 
-		// initialize BWTARegion indices
-		for each (BWTA::Region* r in BWTA::getRegions())
-			BWTARegion.insert(std::make_pair(r, hashRegionCenter(r)));
+		// initialize allChokeDepRegs
+		for (unsigned int i = 0; i < Broodwar->mapWidth(); ++i)
+			for (unsigned int j = 0; j < Broodwar->mapWidth(); ++j)
+				allChokeDepReg.insert(rd.chokeDependantRegion[i][j]);
 	}
 	else
 	{
@@ -127,6 +135,67 @@ void BWRepDump::createChokeDependantRegions()
 			oa << rd;
 		}
 	}
+	sprintf_s(buf2, "bwapi-data/AI/terrain/%s.pfdrep", BWAPI::Broodwar->mapHash().c_str());
+	if (fileExists(buf2))
+	{	
+		std::ifstream ifs(buf2, std::ios::binary);
+		boost::archive::binary_iarchive ia(ifs);
+		ia >> _pfMaps;
+	}
+	else
+	{
+		/// Fill distRegions with the mean distance between each Regions
+		/// -1 if the 2 Regions are not mutualy/inter accessible by ground
+		for (std::set<BWTA::Region*>::const_iterator it = allRegions.begin();
+			it != allRegions.end(); ++it)
+		{
+			_pfMaps.distRegions.insert(std::make_pair(hash(*it),
+				std::map<int, double>()));
+			for (std::set<BWTA::Region*>::const_iterator it2 = allRegions.begin();
+				it2 != allRegions.end(); ++it2)
+				_pfMaps.distRegions[hash(*it)].insert(std::make_pair(hash(*it2), 
+					BWTA::getGroundDistance(TilePosition(regionsPFCenters(*it)),
+					TilePosition(regionsPFCenters(*it2)))));
+		}
+
+		/// Fill distCDR
+		for each (ChokeDepReg cdr in allChokeDepRegs)
+		{
+			_pfMaps.distCDR.insert(std::make_pair(hash(*it),
+				std::map<int, double>()));
+			for each (ChokeDepReg cdr2 in allChokeDepRegs)
+			{
+				BWAPI::Position tmp = cdrCenter(cdr);
+				BWAPI::Position tmp2 = cdrCenter(cdr2);
+#ifdef __DEBUG__
+				/// TODO TilePosition(tmp/2) not walkable RAGEQUIT
+#endif
+				_pfMaps.distCDR.insert[cdr].insert(std::make_pair(cdr2,
+					BWTA::getGroundDistance(TilePosition(tmp), TilePosition(tmp2))));
+			}
+		}
+
+
+
+		/// Fill distBaseToBase
+		for each (BWTA::BaseLocation* b1 in BWTA::getBaseLocations())
+		{
+			_pfMaps.distBaseToBase.insert(std::make_pair(hash(b1),
+				std::map<int, double>()));
+			for each (BWTA::BaseLocation* b2 in BWTA::getBaseLocations())
+			{
+				_pfMaps.distBaseToBase[hash(b1)].insert(std::make_pair(hash(b2),
+					BWTA::getGroundDistance(b1->getTilePosition(), b2->getTilePosition())));
+			}
+		}
+
+		std::ofstream ofs(buf2, std::ios::binary);
+		{
+			boost::archive::binary_oarchive oa(ofs);
+			oa << _pfMaps;
+		}
+	}
+
 }
 
 void BWRepDump::displayChokeDependantRegions()
@@ -136,7 +205,7 @@ void BWRepDump::displayChokeDependantRegions()
 		{
 			//Broodwar->drawBoxMap(x*TILE_SIZE+2, y*TILE_SIZE+2, x*TILE_SIZE+30, y*TILE_SIZE+30, Colors::Cyan);
 			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+8, "%d", rd.chokeDependantRegion[x][y]);
-			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+16, "%d", this->BWTARegion[BWTA::getRegion(TilePosition(x, y))]);
+			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+16, "%d", hashRegionCenter(BWTA::getRegion(TilePosition(x, y)));
 		}
 }
 

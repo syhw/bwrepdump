@@ -15,6 +15,7 @@
 #include "boost/serialization/map.hpp"
 #include "boost/serialization/utility.hpp"
 
+#define __DEBUG__
 #define __DEBUG_OUTPUT__
 #define __DEBUG_CDR__
 
@@ -24,24 +25,26 @@ extern BWTA::Region* home;
 extern BWTA::Region* enemy_base;
 DWORD WINAPI AnalyzeThread();
 
-/*struct PathAwareMaps
+struct PathAwareMaps
 {
     friend class boost::serialization::access;
 	template <class archive>
     void serialize(archive & ar, const unsigned int version)
     {
-        ar & regionsPFCenters;
 		ar & distRegions;
+		ar & distCDR;
         ar & distBaseToBase;
     }
 	std::map<int, std::map<int, double> > distRegions; // distRegions[R1][R2] w.r.t regionsPFCenters
+	std::map<int, std::map<int, double> > distCDR;
 	std::map<int, std::map<int, double> > distBaseToBase;
 };
 
 BOOST_CLASS_TRACKING(PathAwareMaps, boost::serialization::track_never);
-BOOST_CLASS_VERSION(PathAwareMaps, 1);*/
+BOOST_CLASS_VERSION(PathAwareMaps, 1);
 
 typedef int ChokeDepReg;
+
 enum AttackType {
 	DROP,
 	GROUND,
@@ -60,10 +63,10 @@ struct regions_data
         ar & chokeDependantRegion;
     }
 	// 0 -> unwalkable regions
-	std::map<int, std::map<int, ChokeDepReg> > chokeDependantRegion;
+	std::vector<std::vector<ChokeDepReg> > chokeDependantRegion;
 	regions_data() 
 	{}
-	regions_data(const std::map<int, std::map<int, ChokeDepReg> >& cdr)
+	regions_data(const std::vector<std::vector<ChokeDepReg> >& cdr)
 		: chokeDependantRegion(cdr)
 	{}
 };
@@ -120,8 +123,9 @@ protected:
 	// deterministic, so we have a map which maps Region* to a unique int
 	// which is region's center (0)<x Position + 1><y Position>
 	// on                               16 bits      16 bits
-	std::map<BWTA::Region*, int> BWTARegion;
+	std::set<ChokeDepReg> allChokeDepRegs;
 	regions_data rd;
+	PathAwareMaps _pfMaps;
 	void createChokeDependantRegions();
 	void displayChokeDependantRegions();
 	std::set<BWAPI::Unit*> getUnitsCDRegionPlayer(int cdr, BWAPI::Player* p);
