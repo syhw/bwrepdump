@@ -15,7 +15,6 @@
 #include "boost/serialization/map.hpp"
 #include "boost/serialization/utility.hpp"
 
-#define __DEBUG__
 #define __DEBUG_OUTPUT__
 #define __DEBUG_CDR__
 
@@ -130,9 +129,12 @@ protected:
 	void displayChokeDependantRegions();
 	std::set<BWAPI::Unit*> getUnitsCDRegionPlayer(int cdr, BWAPI::Player* p);
 	std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround);
+	BWAPI::Position findClosestWalkableCDR(const BWAPI::Position& p, ChokeDepReg c);
+	BWTA::Region* findClosestReachableRegion(BWTA::Region* q, BWTA::Region* r);
 	double scoreGround(ChokeDepReg cdr, BWAPI::Player* defender);
 	double scoreAir(ChokeDepReg cdr, BWAPI::Player* defender);
 	double scoreInvis(ChokeDepReg cdr, BWAPI::Player* defender);
+
 public:
 	virtual void onStart();
 	virtual void onEnd(bool isWinner);
