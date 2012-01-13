@@ -13,6 +13,7 @@
 #include "boost/archive/binary_oarchive.hpp"
 #include "boost/archive/binary_iarchive.hpp"
 #include "boost/serialization/map.hpp"
+#include "boost/serialization/vector.hpp"
 #include "boost/serialization/utility.hpp"
 
 #define __DEBUG_OUTPUT__
@@ -30,13 +31,13 @@ struct PathAwareMaps
 	template <class archive>
     void serialize(archive & ar, const unsigned int version)
     {
+		ar & regionsPFCenters;
 		ar & distRegions;
 		ar & distCDR;
-        ar & distBaseToBase;
     }
+	std::map<int, std::pair<int, int> > regionsPFCenters; // Pathfinding wise region centers
 	std::map<int, std::map<int, double> > distRegions; // distRegions[R1][R2] w.r.t regionsPFCenters
 	std::map<int, std::map<int, double> > distCDR;
-	std::map<int, std::map<int, double> > distBaseToBase;
 };
 
 BOOST_CLASS_TRACKING(PathAwareMaps, boost::serialization::track_never);
@@ -129,8 +130,9 @@ protected:
 	void displayChokeDependantRegions();
 	std::set<BWAPI::Unit*> getUnitsCDRegionPlayer(int cdr, BWAPI::Player* p);
 	std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround);
-	BWAPI::Position findClosestWalkableCDR(const BWAPI::Position& p, ChokeDepReg c);
+	BWAPI::TilePosition findClosestWalkableCDR(const BWAPI::TilePosition& p, ChokeDepReg c);
 	BWTA::Region* findClosestReachableRegion(BWTA::Region* q, BWTA::Region* r);
+	ChokeDepReg findClosestReachableCDR(ChokeDepReg q, ChokeDepReg cdr);
 	double scoreGround(ChokeDepReg cdr, BWAPI::Player* defender);
 	double scoreAir(ChokeDepReg cdr, BWAPI::Player* defender);
 	double scoreInvis(ChokeDepReg cdr, BWAPI::Player* defender);
@@ -194,6 +196,8 @@ public:
 	std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > seenThisTurn;
 
 	std::set<BWAPI::Player*> activePlayers;
+
+	BWAPI::TilePosition regionsPFCenters(BWTA::Region* r);
 
 	//std::map<BWAPI::Unit*, int> lastOrderFrame;
 	bool unitDestroyedThisTurn;

@@ -48,32 +48,32 @@ BWAPI::TilePosition cdrCenter(ChokeDepReg c)
 	return TilePosition(((0xFFFF000 & c) >> 16) - 1, 0x0000FFFF & c);
 }
 
-BWAPI::Position BWRepDump::findClosestWalkableCDR(const BWAPI::Position& p, ChokeDepReg c)
+BWAPI::TilePosition BWRepDump::findClosestWalkableCDR(const BWAPI::TilePosition& tp, ChokeDepReg c)
 {
 	/// Finds the closest-to-"p" walkable position (walktile resolution) in the given "c"
 	double m = DBL_MAX;
-	BWAPI::Position ret(p);
-	for (int x = max(0, p.x()/8 - 16); x < min(Broodwar->mapWidth()/8, p.x()/8 + 16) ;++x)
-		for (int y = max(0, p.y()/8 - 16); x < min(Broodwar->mapHeight()/8, p.y()/8 + 16); ++y)
+	BWAPI::TilePosition ret(tp);
+	for (int x = max(0, tp.x()*4 - 4); x < min(Broodwar->mapWidth()/8, tp.x()*4 + 4) ;++x)
+		for (int y = max(0, tp.y()*4 - 4); x < min(Broodwar->mapHeight()/8, tp.y()*4 + 4); ++y)
 		{
-			Position tmp(8*x, 8*y);
+			TilePosition tmp(x/4, y/4);
 			if (rd.chokeDependantRegion[x/4][y/4] == c 
-				&& Broodwar->isWalkable(x, y) && p.getApproxDistance(tmp) < m)
+				&& Broodwar->isWalkable(x, y) && tp.getDistance(tmp) < m)
 			{
-				m = p.getApproxDistance(tmp); /// TODO could use pathfinding here...
+				m = tp.getDistance(tmp); /// TODO could use pathfinding here...
 				ret = tmp;
 			}
 		}
-	if (rd.chokeDependantRegion[ret.x()/TILE_SIZE][ret.y()/TILE_SIZE] != c)
+	if (rd.chokeDependantRegion[ret.x()][ret.y()] != c)
 	{
-		for (int x = max(0, p.x()/8 - 32); x < min(Broodwar->mapWidth()/8, p.x()/8 + 32) ;++x)
-			for (int y = max(0, p.y()/8 - 32); x < min(Broodwar->mapHeight()/8, p.y()/8 + 32); ++y)
+		for (int x = max(0, tp.x()*4 - 8); x < min(Broodwar->mapWidth()/8, tp.x()*4 + 8) ;++x)
+			for (int y = max(0, tp.y()*4 - 8); x < min(Broodwar->mapHeight()/8, tp.y()*4 + 8); ++y)
 			{
-				Position tmp(8*x, 8*y);
+				TilePosition tmp(x/4, y/4);
 				if (rd.chokeDependantRegion[x/4][y/4] == c 
-					&& Broodwar->isWalkable(x, y) && p.getApproxDistance(tmp) < m)
+					&& Broodwar->isWalkable(x, y) && tp.getDistance(tmp) < m)
 				{
-					m = p.getApproxDistance(tmp); /// TODO could use pathfinding here...
+					m = tp.getDistance(tmp); /// TODO could use pathfinding here...
 					ret = tmp;
 				}
 			}
@@ -91,6 +91,21 @@ BWTA::Region* BWRepDump::findClosestReachableRegion(BWTA::Region* q, BWTA::Regio
 		{
 			m = _pfMaps.distRegions[hashRegionCenter(rr)][hashRegionCenter(q)];
 			ret = rr;
+		}
+	}
+	return ret;
+}
+
+ChokeDepReg BWRepDump::findClosestReachableCDR(ChokeDepReg q, ChokeDepReg cdr)
+{
+	double m = DBL_MAX;
+	ChokeDepReg ret = q;
+	for each (ChokeDepReg cdrr in allChokeDepRegs)
+	{
+		if (_pfMaps.distCDR[cdr][cdrr] && _pfMaps.distCDR[q][cdrr] < m)
+		{
+			m = _pfMaps.distCDR[cdrr][q];
+			ret = cdrr;
 		}
 	}
 	return ret;
@@ -137,8 +152,8 @@ void BWRepDump::createChokeDependantRegions()
 			maxTiles.push_back(max(MAX_CDREGION_RADIUS, static_cast<int>(c->getWidth())/TILE_SIZE));
 		}
 		/// 2. Voronoi on both choke's regions
-		for (int x = 0; x < Broodwar->mapWidth(); ++x)
-			for (int y = 0; y < Broodwar->mapHeight(); ++y)
+		for (int x = 0; x < Broodwar->mapWidth()/TILE_SIZE; ++x)
+			for (int y = 0; y < Broodwar->mapHeight()/TILE_SIZE; ++y)
 			{
 				TilePosition tmp(x, y);
 				BWTA::Region* r = BWTA::getRegion(tmp);
@@ -164,7 +179,7 @@ void BWRepDump::createChokeDependantRegions()
 		for (int x = 0; x < Broodwar->mapWidth()/TILE_SIZE; ++x)
 			for (int y = 0; y < Broodwar->mapHeight()/TILE_SIZE; ++y)
 			{
-				TilePosition tmp(x, y));
+				TilePosition tmp(x, y);
 				if (region[x + y * Broodwar->mapWidth()] == -1)
 					this->rd.chokeDependantRegion[x][y] = hashRegionCenter(BWTA::getRegion(tmp));
 				else
@@ -187,46 +202,44 @@ void BWRepDump::createChokeDependantRegions()
 	{
 		/// Fill distRegions with the mean distance between each Regions
 		/// -1 if the 2 Regions are not mutualy/inter accessible by ground
-		for (std::set<BWTA::Region*>::const_iterator it = allRegions.begin();
-			it != allRegions.end(); ++it)
+		for (std::set<BWTA::Region*>::const_iterator it = BWTA::getRegions().begin();
+			it != BWTA::getRegions().end(); ++it)
 		{
-			_pfMaps.distRegions.insert(std::make_pair(hash(*it),
+			_pfMaps.distRegions.insert(std::make_pair(hashRegionCenter(*it),
 				std::map<int, double>()));
-			for (std::set<BWTA::Region*>::const_iterator it2 = allRegions.begin();
-				it2 != allRegions.end(); ++it2)
-				_pfMaps.distRegions[hash(*it)].insert(std::make_pair(hash(*it2), 
-					BWTA::getGroundDistance(TilePosition(regionsPFCenters(*it)),
-					TilePosition(regionsPFCenters(*it2)))));
+			for (std::set<BWTA::Region*>::const_iterator it2 = BWTA::getRegions().begin();
+				it2 != BWTA::getRegions().end(); ++it2)
+			{
+				if (_pfMaps.distRegions.count(hashRegionCenter(*it2)))
+					_pfMaps.distRegions[hashRegionCenter(*it)].insert(std::make_pair(hashRegionCenter(*it2),
+						_pfMaps.distRegions[hashRegionCenter(*it2)][hashRegionCenter(*it)]));
+				else
+					_pfMaps.distRegions[hashRegionCenter(*it)].insert(std::make_pair(hashRegionCenter(*it2), 
+						BWTA::getGroundDistance(TilePosition(regionsPFCenters(*it)), TilePosition(regionsPFCenters(*it2)))));
+			}
 		}
 
 		/// Fill distCDR
 		/// -1 if the 2 Regions are not mutualy/inter accessible by ground
 		for each (ChokeDepReg cdr in allChokeDepRegs)
 		{
-			_pfMaps.distCDR.insert(std::make_pair(hash(*it),
+			_pfMaps.distCDR.insert(std::make_pair(cdr,
 				std::map<int, double>()));
 			for each (ChokeDepReg cdr2 in allChokeDepRegs)
 			{
-				BWAPI::TilePosition tmp = cdrCenter(cdr);
-				BWAPI::TilePosition tmp2 = cdrCenter(cdr2);
-				if (!Broodwar->isWalkable(tmp.x()/8, tmp.y()/8) || rd.chokeDependantRegion[tmp.x()][tmp.y()] != cdr)
-					tmp = findClosestWalkableCDR(tmp, cdr);
-				if (!Broodwar->isWalkable(tmp2.x()/8, tmp2.y()/8) || rd.chokeDependantRegion[tmp2.x()][tmp2.y()] != cdr2)
-					tmp2 = findClosestWalkableCDR(cdr2);
-				_pfMaps.distCDR.insert[cdr].insert(std::make_pair(cdr2,
-					BWTA::getGroundDistance(TilePosition(tmp), TilePosition(tmp2))));
-			}
-		}
-
-		/// Fill distBaseToBase
-		for each (BWTA::BaseLocation* b1 in BWTA::getBaseLocations())
-		{
-			_pfMaps.distBaseToBase.insert(std::make_pair(hash(b1),
-				std::map<int, double>()));
-			for each (BWTA::BaseLocation* b2 in BWTA::getBaseLocations())
-			{
-				_pfMaps.distBaseToBase[hash(b1)].insert(std::make_pair(hash(b2),
-					BWTA::getGroundDistance(b1->getTilePosition(), b2->getTilePosition())));
+				if (_pfMaps.distCDR.count(cdr2))
+					_pfMaps.distCDR[cdr].insert(std::make_pair(cdr2, _pfMaps.distCDR[cdr2][cdr]));
+				else
+				{
+					BWAPI::TilePosition tmp = cdrCenter(cdr);
+					BWAPI::TilePosition tmp2 = cdrCenter(cdr2);
+					if (!Broodwar->isWalkable(tmp.x()/8, tmp.y()/8) || rd.chokeDependantRegion[tmp.x()][tmp.y()] != cdr)
+						tmp = findClosestWalkableCDR(tmp, cdr);
+					if (!Broodwar->isWalkable(tmp2.x()/8, tmp2.y()/8) || rd.chokeDependantRegion[tmp2.x()][tmp2.y()] != cdr2)
+						tmp2 = findClosestWalkableCDR(tmp2, cdr2);
+					_pfMaps.distCDR[cdr].insert(std::make_pair(cdr2,
+						BWTA::getGroundDistance(TilePosition(tmp), TilePosition(tmp2))));
+				}
 			}
 		}
 
@@ -239,6 +252,12 @@ void BWRepDump::createChokeDependantRegions()
 
 }
 
+BWAPI::TilePosition BWRepDump::regionsPFCenters(BWTA::Region* r)
+{
+	int tmp = hashRegionCenter(r);
+	return TilePosition(_pfMaps.regionsPFCenters[tmp].first, _pfMaps.regionsPFCenters[tmp].second);
+}
+
 void BWRepDump::displayChokeDependantRegions()
 {
 	for (int x = 0; x < Broodwar->mapWidth()/TILE_SIZE; x += 2)
@@ -246,7 +265,7 @@ void BWRepDump::displayChokeDependantRegions()
 		{
 			//Broodwar->drawBoxMap(x*TILE_SIZE+2, y*TILE_SIZE+2, x*TILE_SIZE+30, y*TILE_SIZE+30, Colors::Cyan);
 			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+8, "%d", rd.chokeDependantRegion[x][y]);
-			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+16, "%d", hashRegionCenter(BWTA::getRegion(TilePosition(x, y)));
+			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+16, "%d", hashRegionCenter(BWTA::getRegion(TilePosition(x, y))));
 	//		Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+24, "%f", 
 		}
 }
@@ -452,13 +471,13 @@ struct heuristics_analyser
 	}
 
 	// detection
-	double scoreInvis(ChokeDepReg cdr)
+	double scoreDetect(ChokeDepReg cdr)
 	{
-		countDetectorUnits(getUnitsCDRegion(cdr))));
+		return countDetectorUnits(getUnitsCDRegion(cdr));
 	}
-	double scoreInvis(BWTA::Region* r)
+	double scoreDetect(BWTA::Region* r)
 	{
-		countDetectorUnits(getUnitsRegion(r))));
+		return countDetectorUnits(getUnitsRegion(r));
 	}
 
 	// economy
@@ -502,11 +521,11 @@ struct heuristics_analyser
 		if (!tacRegion.empty())
 			return tacRegion[r];
 		std::set<Unit*> ths = getTownhalls(p->getUnits());
-		std::set<Unit*> army = getPlayerMilitaryUnits(p->getUnits()).second;
+		std::list<Unit*> army = bwrd->getPlayerMilitaryUnits(p->getUnits())[p];
 		Position mean(0, 0);
 		for each (Unit* u in army)
 			mean += u->getPosition();
-		mean /= army.size();
+		mean = Position(mean.x()/army.size(), mean.y()/army.size());
 		double s = 0.0;
 		BWTA::Region* meanArmyReg = BWTA::getRegion(mean);
 		for each (BWTA::Region* rr in BWTA::getRegions())
@@ -517,7 +536,7 @@ struct heuristics_analyser
 				BWTA::Region* thr = BWTA::getRegion(th->getTilePosition());
 				if (thr->getReachableRegions().count(rr))
 				{
-					double tmp = bwrd->_pfMaps.distRegions[rr][BWTA::getRegion(th->getPosition())];
+					double tmp = bwrd->_pfMaps.distRegions[hashRegionCenter(rr)][hashRegionCenter(BWTA::getRegion(th->getPosition()))];
 					tacRegion[rr] += tmp*tmp;
 				}
 				else // if rr is an island, it will be penalized a lot
@@ -525,9 +544,9 @@ struct heuristics_analyser
 			}
 			double tmp = 0.0;
 			if (rr->getReachableRegions().count(meanArmyReg))
-				tmp = _pfMaps.distRegions[rr][meanArmyReg];
+				tmp = bwrd->_pfMaps.distRegions[hashRegionCenter(rr)][hashRegionCenter(meanArmyReg)];
 			else
-				tmp = _pfMaps.distRegions[rr][findClosestReachableRegion(meanArmyReg, rr)];
+				tmp = bwrd->_pfMaps.distRegions[hashRegionCenter(rr)][hashRegionCenter(bwrd->findClosestReachableRegion(meanArmyReg, rr))];
 			tacRegion[rr] += tmp*tmp * ARMY_TACTICAL_IMPORTANCE;
 			s += tacRegion[rr];
 		}
@@ -540,13 +559,13 @@ struct heuristics_analyser
 	double tacticalImportance(ChokeDepReg cdr)
 	{
 		if (!tacCDR.empty())
-			return tacCDR(cdr);
+			return tacCDR[cdr];
 		std::set<Unit*> ths = getTownhalls(p->getUnits());
-		std::set<Unit*> army = getPlayerMilitaryUnits(p->getUnits()).second;
+		std::list<Unit*> army = bwrd->getPlayerMilitaryUnits(p->getUnits())[p];
 		Position mean(0, 0);
 		for each (Unit* u in army)
 			mean += u->getPosition();
-		mean /= army.size();
+		mean = Position(mean.x()/army.size(), mean.y()/army.size());
 		TilePosition m(mean);
 		ChokeDepReg meanArmyCDR = bwrd->rd.chokeDependantRegion[m.x()][m.y()];
 		double s = 0.0;
@@ -555,20 +574,20 @@ struct heuristics_analyser
 			tacCDR.insert(std::make_pair(cdrr, 0.0));
 			for each (Unit* th in ths)
 			{
-				ChokdeDepReg thcdr = bwrd->rd.chokeDependantRegion[th->getTilePosition().x()][th->getTilePosition().y()];
+				ChokeDepReg thcdr = bwrd->rd.chokeDependantRegion[th->getTilePosition().x()][th->getTilePosition().y()];
 				if (bwrd->_pfMaps.distCDR[thcdr][cdrr] >= 0.0) // is reachable
 				{
 					double tmp = bwrd->_pfMaps.distCDR[thcdr][cdrr];
-					tacRegion[rr] += tmp*tmp;
+					tacCDR[cdrr] += tmp*tmp;
 				}
 				else // if rr is an island, it will be penalized a lot
-					tacRegion[rr] += Broodwar->mapWidth() * Broodwar->mapHeight();
+					tacCDR[cdrr] += Broodwar->mapWidth() * Broodwar->mapHeight();
 			}
 			double tmp = 0.0;
 			if (bwrd->_pfMaps.distCDR[cdrr][meanArmyCDR] >= 0.0) // is reachable
-				tmp = _pfMaps.distCDR[cdrr][meanArmyCDR];
+				tmp = bwrd->_pfMaps.distCDR[cdrr][meanArmyCDR];
 			else
-				tmp = _pfMaps.distCDR[cdrr][findClosestReachableCDR(meanArmyCDR, cdrr)];
+				tmp = bwrd->_pfMaps.distCDR[cdrr][bwrd->findClosestReachableCDR(meanArmyCDR, cdrr)];
 			tacCDR[cdrr] += tmp*tmp * ARMY_TACTICAL_IMPORTANCE;
 			s += tacCDR[cdrr];
 		}
@@ -951,7 +970,7 @@ void BWRepDump::updateAttacks()
 					for each (std::pair<BWAPI::UnitType, int> pp in tmp)
 						tmpUnitTypesPlayer += "(" + pp.first.getName() + ":" + convertInt(pp.second) + "),";
 					tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] = '}';
-					tmpUnitTypesEnd += convertInt(put.first->getID()) + tmpUnitTypesPlayer + ",";
+					tmpUnitTypesEnd += convertInt(pu.first->getID()) + tmpUnitTypesPlayer + ",";
 				}
 				tmpUnitTypesEnd[tmpUnitTypesEnd.size()-1] = ']';
 				TilePosition ttt(it->initPosition);
@@ -965,10 +984,11 @@ void BWRepDump::updateAttacks()
 				/// [$playerId{$type:$numberAtEnd}], ($lastPosition.x, $lastPosition.y) ,$lastFrame, $winnerId
 				replayDat << it->firstFrame << "," << it->defender->getID() << "IsAttacked," << tmpAttackType << ",("
 					<< it->initPosition.x() << "," << it->initPosition.y() << ")," << tmpUnitTypes << ",("
-					<< scoreGround(cdr, it->defender) << "," << scoreGround(r, it->defender) << ","
-					<< scoreAir(cdr, it->defender) << "," << scoreAir(r, it->defender) << ","
-					<< scoreDetect(cdr, it->defender) << "," << scoreDetect(r, it->defender) << ","
-					<< economicImportance(cdr, it->defender) << "," << economicImportance(r, it->defender) << ","
+					<< ha.scoreGround(cdr) << "," << ha.scoreGround(r) << ","
+					<< ha.scoreAir(cdr) << "," << ha.scoreAir(r) << ","
+					<< ha.scoreDetect(cdr) << "," << ha.scoreDetect(r) << ","
+					<< ha.economicImportance(cdr) << "," << ha.economicImportance(r) << ","
+					<< ha.tacticalImportance(cdr) << "," << ha.tacticalImportance(r) << ","
 				    << ")," << tmpUnitTypesEnd << ",(" << it->position.x() << "," << it->position.y() << ")," << Broodwar->getFrameCount() << "," << winner->getID() << "\n";
 			}
 			// if the currently examined attack is too old and too far,
