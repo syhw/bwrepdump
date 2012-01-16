@@ -16,8 +16,8 @@
 #include "boost/serialization/vector.hpp"
 #include "boost/serialization/utility.hpp"
 
-#define __DEBUG_OUTPUT__
-#define __DEBUG_CDR__
+//#define __DEBUG_OUTPUT__
+//#define __DEBUG_CDR__
 
 extern bool analyzed;
 extern bool analysis_just_finished;
@@ -65,6 +65,7 @@ struct regions_data
 	// 0 -> unwalkable regions
 	std::vector<std::vector<ChokeDepReg> > chokeDependantRegion;
 	regions_data() 
+		: chokeDependantRegion(std::vector<std::vector<ChokeDepReg> >(BWAPI::Broodwar->mapWidth(), std::vector<ChokeDepReg>(BWAPI::Broodwar->mapHeight(), -1)))
 	{}
 	regions_data(const std::vector<std::vector<ChokeDepReg> >& cdr)
 		: chokeDependantRegion(cdr)

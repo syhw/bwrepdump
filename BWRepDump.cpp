@@ -31,14 +31,17 @@ std::string convertInt(int number)
 	return ss.str();
 }
 
+int hash(const BWAPI::TilePosition& p)
+{
+	return (((p.x() + 1) << 16) | p.y());
+}
+
 int hashRegionCenter(BWTA::Region* r)
 {
 	/// Max size for a map is 512x512 build tiles => 512*32 = 16384 = 2^14 pixels
 	/// Unwalkable regions will map to 0
 	TilePosition p(r->getPolygon().getCenter());
-	int tmp = p.x() + 1; // + 1 to give room for choke dependant regions (after shifting)
-	tmp = (tmp << 16) | p.y();
-	return tmp;
+	return hash(p);
 }
 
 BWAPI::TilePosition cdrCenter(ChokeDepReg c)
@@ -53,8 +56,8 @@ BWAPI::TilePosition BWRepDump::findClosestWalkableCDR(const BWAPI::TilePosition&
 	/// Finds the closest-to-"p" walkable position (walktile resolution) in the given "c"
 	double m = DBL_MAX;
 	BWAPI::TilePosition ret(tp);
-	for (int x = max(0, tp.x()*4 - 4); x < min(Broodwar->mapWidth()/8, tp.x()*4 + 4) ;++x)
-		for (int y = max(0, tp.y()*4 - 4); x < min(Broodwar->mapHeight()/8, tp.y()*4 + 4); ++y)
+	for (int x = max(0, tp.x()*4 - 4); x < min(Broodwar->mapWidth()*4, tp.x()*4 + 4) ;++x)
+		for (int y = max(0, tp.y()*4 - 4); y < min(Broodwar->mapHeight()*4, tp.y()*4 + 4); ++y)
 		{
 			TilePosition tmp(x/4, y/4);
 			if (rd.chokeDependantRegion[x/4][y/4] == c 
@@ -66,8 +69,8 @@ BWAPI::TilePosition BWRepDump::findClosestWalkableCDR(const BWAPI::TilePosition&
 		}
 	if (rd.chokeDependantRegion[ret.x()][ret.y()] != c)
 	{
-		for (int x = max(0, tp.x()*4 - 8); x < min(Broodwar->mapWidth()/8, tp.x()*4 + 8) ;++x)
-			for (int y = max(0, tp.y()*4 - 8); x < min(Broodwar->mapHeight()/8, tp.y()*4 + 8); ++y)
+		for (int x = max(0, tp.x()*4 - 8); x < min(Broodwar->mapWidth()*4, tp.x()*4 + 8) ;++x)
+			for (int y = max(0, tp.y()*4 - 8); y < min(Broodwar->mapHeight()*4, tp.y()*4 + 8); ++y)
 			{
 				TilePosition tmp(x/4, y/4);
 				if (rd.chokeDependantRegion[x/4][y/4] == c 
@@ -135,15 +138,9 @@ void BWRepDump::createChokeDependantRegions()
 		std::ifstream ifs(buf, std::ios::binary);
 		boost::archive::binary_iarchive ia(ifs);
 		ia >> rd;
-
-		// initialize allChokeDepRegs
-		for (int i = 0; i < Broodwar->mapWidth()/TILE_SIZE; ++i)
-			for (int j = 0; j < Broodwar->mapWidth()/TILE_SIZE; ++j)
-				allChokeDepRegs.insert(rd.chokeDependantRegion[i][j]);
 	}
 	else
 	{
-		std::vector<int> region(Broodwar->mapWidth()/TILE_SIZE * Broodwar->mapHeight()/TILE_SIZE, -1); // tmp on build tiles coordinates
 		std::vector<int> maxTiles; // max tiles for each CDRegion
 		int k = 1; // 0 is reserved for unwalkable regions
 		/// 1. for each region, max radius = max(MAX_CDREGION_RADIUS, choke size)
@@ -152,8 +149,8 @@ void BWRepDump::createChokeDependantRegions()
 			maxTiles.push_back(max(MAX_CDREGION_RADIUS, static_cast<int>(c->getWidth())/TILE_SIZE));
 		}
 		/// 2. Voronoi on both choke's regions
-		for (int x = 0; x < Broodwar->mapWidth()/TILE_SIZE; ++x)
-			for (int y = 0; y < Broodwar->mapHeight()/TILE_SIZE; ++y)
+		for (int x = 0; x < Broodwar->mapWidth(); ++x)
+			for (int y = 0; y < Broodwar->mapHeight(); ++y)
 			{
 				TilePosition tmp(x, y);
 				BWTA::Region* r = BWTA::getRegion(tmp);
@@ -163,27 +160,27 @@ void BWRepDump::createChokeDependantRegions()
 				{
 					// TODO could use ground distance??
 					// something like double tmpDist = BWTA::getGroundDistance(tmp, TilePosition(c->getCenter()));
-					TilePosition chokeCenter(c->getCenter());
+					TilePosition chokeCenter(c->getCenter().x() / TILE_SIZE, c->getCenter().y() / TILE_SIZE);
 					double tmpDist = tmp.getDistance(chokeCenter);
-					if (tmpDist < minDist && static_cast<int>(tmpDist) <= maxTiles[cpn-1]
+					double pathFindDist = DBL_MAX;
+					if (tmpDist < minDist && tmpDist <= 1.0*maxTiles[cpn-1]
+						&& (pathFindDist=BWTA::getGroundDistance(tmp, chokeCenter)) < minDist
 					    && (c->getRegions().first == r || c->getRegions().second == r)
 					)
 					{
-						minDist = tmpDist;
-						region[x + y * Broodwar->mapWidth()/TILE_SIZE] = ((chokeCenter.x()+1) << 16) | chokeCenter.y();
+						minDist = pathFindDist;
+						rd.chokeDependantRegion[x][y] = hash(chokeCenter);
 					}
 					++cpn;
 				}
 			}
 		/// 3. Complete with (amputated) BWTA regions
-		for (int x = 0; x < Broodwar->mapWidth()/TILE_SIZE; ++x)
-			for (int y = 0; y < Broodwar->mapHeight()/TILE_SIZE; ++y)
+		for (int x = 0; x < Broodwar->mapWidth(); ++x)
+			for (int y = 0; y < Broodwar->mapHeight(); ++y)
 			{
 				TilePosition tmp(x, y);
-				if (region[x + y * Broodwar->mapWidth()] == -1)
-					this->rd.chokeDependantRegion[x][y] = hashRegionCenter(BWTA::getRegion(tmp));
-				else
-					this->rd.chokeDependantRegion[x][y] = region[x + y * Broodwar->mapWidth()];
+				if (rd.chokeDependantRegion[x][y] == -1 && BWTA::getRegion(tmp) != NULL)
+						this->rd.chokeDependantRegion[x][y] = hashRegionCenter(BWTA::getRegion(tmp));
 			}
 		std::ofstream ofs(buf, std::ios::binary);
 		{
@@ -191,6 +188,16 @@ void BWRepDump::createChokeDependantRegions()
 			oa << rd;
 		}
 	}
+	// initialize allChokeDepRegs
+	for (int i = 0; i < Broodwar->mapWidth(); ++i)
+	{
+		for (int j = 0; j < Broodwar->mapWidth(); ++j)
+		{
+			if (rd.chokeDependantRegion[i][j] != -1)
+				allChokeDepRegs.insert(rd.chokeDependantRegion[i][j]);
+		}
+	}
+
 	sprintf_s(buf2, "bwapi-data/AI/terrain/%s.pfdrep", BWAPI::Broodwar->mapHash().c_str());
 	if (fileExists(buf2))
 	{	
@@ -260,14 +267,27 @@ BWAPI::TilePosition BWRepDump::regionsPFCenters(BWTA::Region* r)
 
 void BWRepDump::displayChokeDependantRegions()
 {
-	for (int x = 0; x < Broodwar->mapWidth()/TILE_SIZE; x += 2)
-		for (int y = 0; y < Broodwar->mapHeight()/TILE_SIZE; ++y)
+	for (int x = 0; x < Broodwar->mapWidth(); x += 4)
+	{
+		for (int y = 0; y < Broodwar->mapHeight(); y += 2)
 		{
 			//Broodwar->drawBoxMap(x*TILE_SIZE+2, y*TILE_SIZE+2, x*TILE_SIZE+30, y*TILE_SIZE+30, Colors::Cyan);
-			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+8, "%d", rd.chokeDependantRegion[x][y]);
-			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+16, "%d", hashRegionCenter(BWTA::getRegion(TilePosition(x, y))));
+			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+2, "%d", rd.chokeDependantRegion[x][y]);
+			if (BWTA::getRegion(TilePosition(x, y)) != NULL)
+				Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+10, "%d", hashRegionCenter(BWTA::getRegion(TilePosition(x, y))));
 	//		Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+24, "%f", 
 		}
+	}
+
+	int n = 0;
+	for each (ChokeDepReg cdr in allChokeDepRegs)
+	{
+		if (cdr != -1)
+		{
+			Broodwar->drawCircleMap(cdrCenter(cdr).x()*TILE_SIZE+TILE_SIZE/2, cdrCenter(cdr).y()*TILE_SIZE+TILE_SIZE/2, 10, Colors::Green, true);
+			Broodwar->drawTextMap(cdrCenter(cdr).x()*TILE_SIZE+TILE_SIZE/2, cdrCenter(cdr).y()*TILE_SIZE+TILE_SIZE/2, "%d", n++);
+		}
+	}
 }
 
 std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > BWRepDump::getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround)
@@ -624,7 +644,7 @@ void BWRepDump::onStart()
 	if (Broodwar->isReplay())
 	{
 		//Broodwar->setLocalSpeed(0);
-		Broodwar->setLatCom(false);
+		//Broodwar->setLatCom(false);
 		//Broodwar->setFrameSkip(0);
 		std::ofstream myfile;
 		std::string filepath = Broodwar->mapPathName() + ".rgd";
@@ -1025,6 +1045,8 @@ void BWRepDump::onFrame()
 				Broodwar->drawLine(CoordinateType::Map,point1.x(),point1.y(),point2.x(),point2.y(),Colors::Green);
 			}
 		}
+		for each (BWTA::Chokepoint* c in BWTA::getChokepoints())
+			Broodwar->drawLineMap(c->getSides().first.x(), c->getSides().first.y(), c->getSides().second.x(), c->getSides().second.y(), Colors::Red);
 #endif
 #ifdef __DEBUG_OUTPUT__
 		char mousePos[100];
@@ -1141,22 +1163,30 @@ void BWRepDump::onFrame()
 			if(Broodwar->getFrameCount() % refreshSpeed == 0 || unitDestroyedThisTurn || newOrders)
 			{
 
-				if(u->exists() && !(u->getPlayer()->getID() == -1) && (!mining && !newOrders) && u->getType() != BWAPI::UnitTypes::Zerg_Larva && unitPositionMap[u] != u->getPosition())
+				if(u->exists() && !(u->getPlayer()->getID() == -1) && !(u->getPlayer()->isNeutral()) && u->getPosition().isValid()
+					&& (!mining && !newOrders) && u->getType() != BWAPI::UnitTypes::Zerg_Larva && unitPositionMap[u] != u->getPosition())
 				{
 					Position p = u->getPosition();
+					TilePosition tp = u->getTilePosition();
 					this->unitPositionMap[u] = p;
 					this->replayLocationDat << Broodwar->getFrameCount() << "," << u->getID() << "," << p.x() << "," << p.y() << "\n";
-					if (unitCDR[u] != rd.chokeDependantRegion[p.x()][p.y()])
+					if (unitCDR[u] != rd.chokeDependantRegion[tp.x()][tp.y()])
 					{
-						ChokeDepReg r = rd.chokeDependantRegion[p.x()][p.y()];
-						unitCDR[u] = r;
-						this->replayLocationDat << Broodwar->getFrameCount() << "," << u->getID() << ",CDR," << r << "\n";
+						ChokeDepReg r = rd.chokeDependantRegion[tp.x()][tp.y()];
+						if (r >= 0)
+						{
+							unitCDR[u] = r;
+							this->replayLocationDat << Broodwar->getFrameCount() << "," << u->getID() << ",CDR," << r << "\n";
+						}
 					}
 					if (unitRegion[u] != BWTA::getRegion(p))
 					{
 						BWTA::Region* r = BWTA::getRegion(p);
-						unitRegion[u] = r;
-						this->replayLocationDat << Broodwar->getFrameCount() << "," << u->getID() << ",Region," << hashRegionCenter(r) << "\n";
+						if (r != NULL)
+						{
+							unitRegion[u] = r;
+							this->replayLocationDat << Broodwar->getFrameCount() << "," << u->getID() << ",Region," << hashRegionCenter(r) << "\n";
+						}
 					}
 				}
 			}
@@ -1303,7 +1333,8 @@ void BWRepDump::onUnitCreate(BWAPI::Unit* unit)
 {
 	BWAPI::Position p = unit->getPosition();
 	this->unitPositionMap[unit] = p;
-	this->unitCDR[unit] = rd.chokeDependantRegion[p.x()][p.y()];
+	BWAPI::TilePosition tp = unit->getTilePosition();
+	this->unitCDR[unit] = rd.chokeDependantRegion[tp.x()][tp.y()];
 	this->unitRegion[unit] = BWTA::getRegion(p);
 	/*
 	if (Broodwar->getFrameCount()>1)
