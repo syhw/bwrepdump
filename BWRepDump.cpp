@@ -859,12 +859,10 @@ void BWRepDump::handleTechEvents()
 			}
 			else
 			{
-				techListPtr = new std::list<TechType>();
-				this->listCurrentlyResearching[p] = (*techListPtr);
+				this->listCurrentlyResearching[p] = std::list<TechType>();
+				techListPtr = &this->listCurrentlyResearching[p];
 			}
 			std::list<TechType> techList = (*techListPtr);
-
-			/// TODO TOFIX
 
 			bool wasResearching = false;
 			for each (BWAPI::TechType lastFrameResearching in techList)
@@ -918,8 +916,8 @@ void BWRepDump::handleTechEvents()
 			}
 			else
 			{
-				upgradeListPtr = new std::list<UpgradeType>();
-				this->listCurrentlyUpgrading[p] = (*upgradeListPtr);
+				this->listCurrentlyUpgrading[p] = std::list<UpgradeType>();
+				upgradeListPtr = &this->listCurrentlyUpgrading[p];
 			}
 			std::list<UpgradeType> upgradeList = (*upgradeListPtr);
 
