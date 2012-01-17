@@ -127,11 +127,14 @@ protected:
 	std::set<ChokeDepReg> allChokeDepRegs;
 	regions_data rd;
 	PathAwareMaps _pfMaps;
+	bool* _lowResWalkability;
 	void createChokeDependantRegions();
 	void displayChokeDependantRegions();
 	std::set<BWAPI::Unit*> getUnitsCDRegionPlayer(int cdr, BWAPI::Player* p);
 	std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround);
-	BWAPI::TilePosition findClosestWalkableCDR(const BWAPI::TilePosition& p, ChokeDepReg c);
+	BWAPI::TilePosition findClosestWalkable(const BWAPI::TilePosition& tp);
+	BWAPI::TilePosition findClosestWalkableSameCDR(const BWAPI::TilePosition& p, ChokeDepReg c);
+	ChokeDepReg findClosestCDR(const BWAPI::TilePosition& tp);
 	BWTA::Region* findClosestReachableRegion(BWTA::Region* q, BWTA::Region* r);
 	ChokeDepReg findClosestReachableCDR(ChokeDepReg q, ChokeDepReg cdr);
 	double scoreGround(ChokeDepReg cdr, BWAPI::Player* defender);
@@ -199,6 +202,7 @@ public:
 	std::set<BWAPI::Player*> activePlayers;
 
 	BWAPI::TilePosition regionsPFCenters(BWTA::Region* r);
+	bool isWalkable(const BWAPI::TilePosition& tp);
 
 	//std::map<BWAPI::Unit*, int> lastOrderFrame;
 	bool unitDestroyedThisTurn;
