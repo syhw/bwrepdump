@@ -1,6 +1,7 @@
 #include "BWRepDump.h"
 #include <float.h>
 #include <sstream>
+#include <iomanip>
 
 #define MAX_CDREGION_RADIUS 12
 #define SECONDS_SINCE_LAST_ATTACK 20
@@ -344,6 +345,7 @@ BWAPI::TilePosition BWRepDump::regionsPFCenters(BWTA::Region* r)
 
 void BWRepDump::displayChokeDependantRegions()
 {
+#ifdef __DEBUG_CDR_FULL__
 	for (int x = 0; x < Broodwar->mapWidth(); x += 4)
 	{
 		for (int y = 0; y < Broodwar->mapHeight(); y += 2)
@@ -355,6 +357,7 @@ void BWRepDump::displayChokeDependantRegions()
 	//		Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+24, "%f", 
 		}
 	}
+#endif
 
 	int n = 0;
 	for each (ChokeDepReg cdr in allChokeDepRegs)
@@ -753,7 +756,7 @@ void BWRepDump::onStart()
 		replayDat.open(filepath.c_str());
 		replayLocationDat.open(locationfilepath.c_str());
 		replayOrdersDat.open(ordersfilepath.c_str());
-		replayDat << "[Replay Start]\n";
+		replayDat << "[Replay Start]\n" << std::fixed << std::setprecision(4);
 		//myfile.close();
 		Broodwar->printf("RepPath: %s", Broodwar->mapPathName().c_str());
 		replayDat << "RepPath: " << Broodwar->mapPathName() << "\n"; 
@@ -1017,7 +1020,7 @@ void BWRepDump::updateAttacks()
 		tmp.insert(tmp.end(), playerUnits[it->defender].begin(), playerUnits[it->defender].end());
 		for each (BWAPI::Unit* u in tmp)
 		{
-			if (u->isAttacking() || u->isUnderAttack())
+			if (u->isUnderAttack()) //(u->isAttacking() || u->isUnderAttack())
 			{
 				pos += u->getPosition();
 				++attackers;
@@ -1065,17 +1068,17 @@ void BWRepDump::updateAttacks()
 				for each (AttackType t in it->types)
 					tmpAttackType += attackTypeToStr(t) + ",";
 				tmpAttackType[tmpAttackType.size()-1] = ')';
-				std::string tmpUnitTypes("[");
+				std::string tmpUnitTypes("{");
 				for each (std::pair<BWAPI::Player*, std::map<BWAPI::UnitType, int> > put in it->unitTypes)
 				{
-					std::string tmpUnitTypesPlayer("{");
+					std::string tmpUnitTypesPlayer(":{");
 					for each (std::pair<BWAPI::UnitType, int> pp in put.second)
-						tmpUnitTypesPlayer += "(" + pp.first.getName() + ":" + convertInt(pp.second) + "),";
+						tmpUnitTypesPlayer += pp.first.getName() + ":" + convertInt(pp.second) + ",";
 					tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] = '}';
 					tmpUnitTypes += convertInt(put.first->getID()) + tmpUnitTypesPlayer + ",";
 				}
-				tmpUnitTypes[tmpUnitTypes.size()-1] = ']';
-				std::string tmpUnitTypesEnd("[");
+				tmpUnitTypes[tmpUnitTypes.size()-1] = '}';
+				std::string tmpUnitTypesEnd("{");
 				for each (std::pair<BWAPI::Player*, std::set<BWAPI::Unit*> > pu in it->battleUnits)
 				{
 					std::map<BWAPI::UnitType, int> tmp;
@@ -1086,13 +1089,13 @@ void BWRepDump::updateAttacks()
 						else
 							tmp.insert(std::make_pair(u->getType(), 1));
 					}
-					std::string tmpUnitTypesPlayer("{");
+					std::string tmpUnitTypesPlayer(":{");
 					for each (std::pair<BWAPI::UnitType, int> pp in tmp)
-						tmpUnitTypesPlayer += "(" + pp.first.getName() + ":" + convertInt(pp.second) + "),";
+						tmpUnitTypesPlayer += pp.first.getName() + ":" + convertInt(pp.second) + ",";
 					tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] = '}';
 					tmpUnitTypesEnd += convertInt(pu.first->getID()) + tmpUnitTypesPlayer + ",";
 				}
-				tmpUnitTypesEnd[tmpUnitTypesEnd.size()-1] = ']';
+				tmpUnitTypesEnd[tmpUnitTypesEnd.size()-1] = '}';
 				TilePosition ttt(it->initPosition);
 				ChokeDepReg cdr = rd.chokeDependantRegion[ttt.x()][ttt.y()];
 				BWTA::Region* r = BWTA::getRegion(ttt);
@@ -1102,13 +1105,13 @@ void BWRepDump::updateAttacks()
 				/// ($scoreGroundCDR, $scoreGroundRegion, $scoreAirCDR, $scoreAirRegion, $scoreDetectCDR, $scoreDetectRegion,
 				/// $ecoImportanceCDR, $ecoImportanceRegion, $tactImportanceCDR, $tactImportanceRegion),
 				/// [$playerId{$type:$numberAtEnd}], ($lastPosition.x, $lastPosition.y) ,$lastFrame, $winnerId
-				replayDat << it->firstFrame << "," << it->defender->getID() << "IsAttacked," << tmpAttackType << ",("
+				replayDat << it->firstFrame << "," << it->defender->getID() << ",IsAttacked," << tmpAttackType << ",("
 					<< it->initPosition.x() << "," << it->initPosition.y() << ")," << tmpUnitTypes << ",("
 					<< ha.scoreGround(cdr) << "," << ha.scoreGround(r) << ","
 					<< ha.scoreAir(cdr) << "," << ha.scoreAir(r) << ","
 					<< ha.scoreDetect(cdr) << "," << ha.scoreDetect(r) << ","
 					<< ha.economicImportance(cdr) << "," << ha.economicImportance(r) << ","
-					<< ha.tacticalImportance(cdr) << "," << ha.tacticalImportance(r) << ","
+					<< ha.tacticalImportance(cdr) << "," << ha.tacticalImportance(r) 
 				    << ")," << tmpUnitTypesEnd << ",(" << it->position.x() << "," << it->position.y() << ")," << Broodwar->getFrameCount() << "," << winner->getID() << "\n";
 			}
 			// if the currently examined attack is too old and too far,
