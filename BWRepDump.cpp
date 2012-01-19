@@ -4,8 +4,10 @@
 #include <iomanip>
 
 #define MAX_CDREGION_RADIUS 12
-#define SECONDS_SINCE_LAST_ATTACK 20
+#define SECONDS_SINCE_LAST_ATTACK 12
 #define DISTANCE_TO_OTHER_ATTACK 14*TILE_SIZE // in pixels
+#define MAX_ATTACK_RADIUS 39.0*TILE_SIZE
+#define MIN_ATTACK_RADIUS 7.0*TILE_SIZE
 #define ARMY_TACTICAL_IMPORTANCE 1.0
 
 using namespace BWAPI;
@@ -983,7 +985,8 @@ void BWRepDump::updateAttacks()
 		it != attacks.end(); )
 	{
 #ifdef __DEBUG_OUTPUT__
-		Broodwar->drawCircleMap(it->position.x(), it->position.y(), static_cast<int>(it->radius), Colors::Green);
+		Broodwar->drawCircleMap(it->position.x(), it->position.y(), static_cast<int>(it->radius), Colors::Red);
+		Broodwar->drawBoxMap(it->position.x() - 6, it->position.y() - 6, it->position.x() + 6, it->position.y() + 6, Colors::Red, true);
 		int i = 0;
 		for each (AttackType at in it->types)
 		{
@@ -1003,7 +1006,15 @@ void BWRepDump::updateAttacks()
 			if (!it->battleUnits.count(pp.first))
 				it->battleUnits.insert(std::make_pair(pp.first, std::set<BWAPI::Unit*>()));
 			for each (Unit* uu in pp.second)
-				it->addUnit(uu);
+			{
+				UnitType ut = uu->getType();
+				if ((ut.canAttack() && !ut.isWorker()) // non workers non casters (counts interceptors)
+					|| uu->isAttacking() // attacking workers
+					|| ut == UnitTypes::Protoss_High_Templar || ut == UnitTypes::Protoss_Dark_Archon || ut == UnitTypes::Protoss_Observer || ut == UnitTypes::Protoss_Shuttle || ut == UnitTypes::Protoss_Carrier
+					|| ut == UnitTypes::Zerg_Defiler || ut == UnitTypes::Zerg_Queen || ut == UnitTypes::Zerg_Lurker || ut == UnitTypes::Zerg_Overlord
+					|| ut == UnitTypes::Terran_Medic|| ut == UnitTypes::Terran_Dropship || ut == UnitTypes::Terran_Science_Vessel)
+					it->addUnit(uu);
+			}
 		}
 		// TODO modify, currently 2 players (1v1) only
 		BWAPI::Player* winner = NULL;
@@ -1020,7 +1031,7 @@ void BWRepDump::updateAttacks()
 		tmp.insert(tmp.end(), playerUnits[it->defender].begin(), playerUnits[it->defender].end());
 		for each (BWAPI::Unit* u in tmp)
 		{
-			if (u->isUnderAttack()) //(u->isAttacking() || u->isUnderAttack())
+			if (u && u->exists() && (u->isAttacking() || u->isUnderAttack()))
 			{
 				pos += u->getPosition();
 				++attackers;
@@ -1038,12 +1049,14 @@ void BWRepDump::updateAttacks()
 					&& u->getDistance(it->position) > it->radius)
 					it->radius = u->getDistance(it->position);
 			}
-			if (it->radius < TILE_SIZE*5.0)
-				it->radius = TILE_SIZE*5.0;
+			if (it->radius < MIN_ATTACK_RADIUS)
+				it->radius = MIN_ATTACK_RADIUS;
+			if (it->radius > MAX_ATTACK_RADIUS) 
+				it->radius = MAX_ATTACK_RADIUS;
 			it->frame = Broodwar->getFrameCount();
 			++it;
 		}
-		else if (Broodwar->getFrameCount() - it->frame >= Broodwar->getFPS()*SECONDS_SINCE_LAST_ATTACK)
+		else if (Broodwar->getFrameCount() - it->frame >= 24*SECONDS_SINCE_LAST_ATTACK)
 		{			
 			// Attack is finished, who won the battle ?
 			if (scoreUnits(playerUnits[it->defender]) * 3 < scoreUnits(playerUnits[offender]))
@@ -1084,6 +1097,8 @@ void BWRepDump::updateAttacks()
 					std::map<BWAPI::UnitType, int> tmp;
 					for each (BWAPI::Unit* u in pu.second)
 					{
+						if (!u->exists())
+							continue;
 						if (tmp.count(u->getType()))
 							tmp[u->getType()] += 1;
 						else
@@ -1590,7 +1605,7 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 				if (ut.isFlyer())
 				{
 					if (ut.spaceProvided() > 0
-						&& (Broodwar->getFrameCount() - lastDropOrderByPlayer[p]) < Broodwar->getFPS()*SECONDS_SINCE_LAST_ATTACK)
+						&& (Broodwar->getFrameCount() - lastDropOrderByPlayer[p]) < 24*SECONDS_SINCE_LAST_ATTACK)
 						currentAttackType.insert(DROP);
 					else if (ut.canAttack()
 						|| ut == UnitTypes::Terran_Science_Vessel
