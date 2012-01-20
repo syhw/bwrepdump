@@ -3,8 +3,9 @@
 #include <sstream>
 #include <iomanip>
 
-#define MAX_CDREGION_RADIUS 12
-#define SECONDS_SINCE_LAST_ATTACK 12 // TODO CHANGE THAT XXX
+// TODO CHANGE THESE CONSTANTS XXX
+#define MIN_CDREGION_RADIUS 9
+#define SECONDS_SINCE_LAST_ATTACK 12 
 #define DISTANCE_TO_OTHER_ATTACK 14*TILE_SIZE // in pixels
 #define MAX_ATTACK_RADIUS 39.0*TILE_SIZE
 #define MIN_ATTACK_RADIUS 7.0*TILE_SIZE
@@ -21,7 +22,7 @@ BWTA::Region* enemy_base;
 /* Return TRUE if file 'fileName' exists */
 bool fileExists(const char *fileName)
 {
-    DWORD       fileAttr;
+    DWORD fileAttr;
     fileAttr = GetFileAttributesA(fileName);
     if (0xFFFFFFFF == fileAttr)
         return false;
@@ -52,7 +53,7 @@ BWAPI::TilePosition cdrCenter(ChokeDepReg c)
 {
 	/// This is wrong, will give centers out of the ChokeDepRegions for some coming from BWTA::Region
 	/// TODO NOTE
-	return TilePosition(((0xFFFF000 & c) >> 16) - 1, 0x0000FFFF & c);
+	return TilePosition(((0xFFFF0000 & c) >> 16) - 1, 0x0000FFFF & c);
 }
 
 BWAPI::TilePosition BWRepDump::findClosestWalkable(const BWAPI::TilePosition& tp)
@@ -223,12 +224,12 @@ void BWRepDump::createChokeDependantRegions()
 	}
 	else
 	{
-		std::vector<int> maxTiles; // max tiles for each CDRegion
+		std::map<BWTA::Chokepoint*, int> maxTiles; // max tiles for each CDRegion
 		int k = 1; // 0 is reserved for unwalkable regions
-		/// 1. for each region, max radius = max(MAX_CDREGION_RADIUS, choke size)
+		/// 1. for each region, max radius = max(MIN_CDREGION_RADIUS, choke size)
 		for each (BWTA::Chokepoint* c in BWTA::getChokepoints())
 		{
-			maxTiles.push_back(max(MAX_CDREGION_RADIUS, static_cast<int>(c->getWidth())/TILE_SIZE));
+			maxTiles.insert(std::make_pair(c, max(MIN_CDREGION_RADIUS, static_cast<int>(c->getWidth())/TILE_SIZE)));
 		}
 		/// 2. Voronoi on both choke's regions
 		for (int x = 0; x < Broodwar->mapWidth(); ++x)
@@ -236,14 +237,13 @@ void BWRepDump::createChokeDependantRegions()
 			{
 				TilePosition tmp(x, y);
 				BWTA::Region* r = BWTA::getRegion(tmp);
-				double minDist = DBL_MAX;
-				int cpn = 1;
+				double minDist = DBL_MAX - 100.0;
 				for each (BWTA::Chokepoint* c in BWTA::getChokepoints())
 				{
 					TilePosition chokeCenter(c->getCenter().x() / TILE_SIZE, c->getCenter().y() / TILE_SIZE);
 					double tmpDist = tmp.getDistance(chokeCenter);
 					double pathFindDist = DBL_MAX;
-					if (tmpDist < minDist && tmpDist <= 1.0*maxTiles[cpn-1]
+					if (tmpDist < minDist && tmpDist <= 1.0 * maxTiles[c]
 						&& (pathFindDist=BWTA::getGroundDistance(tmp, chokeCenter)) < minDist
 						&& pathFindDist >= 0.0 // -1 means no way to go there
 					    && (c->getRegions().first == r || c->getRegions().second == r)
@@ -252,7 +252,6 @@ void BWRepDump::createChokeDependantRegions()
 						minDist = pathFindDist;
 						rd.chokeDependantRegion[x][y] = hash(chokeCenter);
 					}
-					++cpn;
 				}
 			}
 		/// 3. Complete with (amputated) BWTA regions
@@ -261,7 +260,7 @@ void BWRepDump::createChokeDependantRegions()
 			{
 				TilePosition tmp(x, y);
 				if (rd.chokeDependantRegion[x][y] == -1 && BWTA::getRegion(tmp) != NULL)
-						this->rd.chokeDependantRegion[x][y] = hashRegionCenter(BWTA::getRegion(tmp));
+					this->rd.chokeDependantRegion[x][y] = hashRegionCenter(BWTA::getRegion(tmp));
 			}
 		std::ofstream ofs(buf, std::ios::binary);
 		{
@@ -272,7 +271,7 @@ void BWRepDump::createChokeDependantRegions()
 	// initialize allChokeDepRegs
 	for (int i = 0; i < Broodwar->mapWidth(); ++i)
 	{
-		for (int j = 0; j < Broodwar->mapWidth(); ++j)
+		for (int j = 0; j < Broodwar->mapHeight(); ++j)
 		{
 			if (rd.chokeDependantRegion[i][j] != -1)
 				allChokeDepRegs.insert(rd.chokeDependantRegion[i][j]);
@@ -353,15 +352,12 @@ void BWRepDump::displayChokeDependantRegions()
 	{
 		for (int y = 0; y < Broodwar->mapHeight(); y += 2)
 		{
-			//Broodwar->drawBoxMap(x*TILE_SIZE+2, y*TILE_SIZE+2, x*TILE_SIZE+30, y*TILE_SIZE+30, Colors::Cyan);
 			Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+2, "%d", rd.chokeDependantRegion[x][y]);
 			if (BWTA::getRegion(TilePosition(x, y)) != NULL)
 				Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+10, "%d", hashRegionCenter(BWTA::getRegion(TilePosition(x, y))));
-	//		Broodwar->drawTextMap(x*TILE_SIZE+6, y*TILE_SIZE+24, "%f", 
 		}
 	}
 #endif
-
 	int n = 0;
 	for each (ChokeDepReg cdr in allChokeDepRegs)
 	{
@@ -371,6 +367,8 @@ void BWRepDump::displayChokeDependantRegions()
 			Broodwar->drawTextMap(cdrCenter(cdr).x()*TILE_SIZE+TILE_SIZE/2, cdrCenter(cdr).y()*TILE_SIZE+TILE_SIZE/2, "%d", n++);
 		}
 	}
+	//for each (BWTA::Chokepoint* c in BWTA::getChokepoints())
+	//	Broodwar->drawBoxMap(c->getCenter().x() - 4, c->getCenter().y() - 4, c->getCenter().x() + 4, c->getCenter().y() + 4, Colors::Brown, true);
 }
 
 std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > BWRepDump::getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround)

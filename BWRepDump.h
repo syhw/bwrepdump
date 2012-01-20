@@ -18,7 +18,7 @@
 
 #define __DEBUG_OUTPUT__
 #define __DEBUG_CDR__
-//#define __DEBUG_CDR_FULL__
+#define __DEBUG_CDR_FULL__
 
 extern bool analyzed;
 extern bool analysis_just_finished;
