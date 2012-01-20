@@ -4,11 +4,12 @@
 #include <iomanip>
 
 #define MAX_CDREGION_RADIUS 12
-#define SECONDS_SINCE_LAST_ATTACK 12
+#define SECONDS_SINCE_LAST_ATTACK 12 // TODO CHANGE THAT XXX
 #define DISTANCE_TO_OTHER_ATTACK 14*TILE_SIZE // in pixels
 #define MAX_ATTACK_RADIUS 39.0*TILE_SIZE
 #define MIN_ATTACK_RADIUS 7.0*TILE_SIZE
 #define ARMY_TACTICAL_IMPORTANCE 1.0
+#define OFFENDER_WIN_COEFFICIENT 2.0
 
 using namespace BWAPI;
 
@@ -709,6 +710,24 @@ struct heuristics_analyser
 	}
 };
 
+void attack::computeScores(BWRepDump* bwrd)
+{
+	heuristics_analyser ha(defender, bwrd);
+	TilePosition tp(initPosition);
+	BWTA::Region* r = BWTA::getRegion(tp);
+	ChokeDepReg cdr = bwrd->rd.chokeDependantRegion[tp.x()][tp.y()];
+	scoreGroundCDR = ha.scoreGround(cdr);
+	scoreGroundRegion = ha.scoreGround(r);
+	scoreAirCDR = ha.scoreAir(cdr);
+	scoreAirRegion = ha.scoreAir(r);
+	scoreDetectCDR = ha.scoreDetect(cdr);
+	scoreDetectRegion = ha.scoreDetect(r);
+	economicImportanceCDR = ha.economicImportance(cdr);
+	economicImportanceRegion = ha.economicImportance(r);
+	tacticalImportanceCDR = ha.tacticalImportance(cdr);
+	tacticalImportanceRegion = ha.tacticalImportance(r);
+}
+
 bool BWRepDump::isWalkable(const TilePosition& tp)
 {
 	return _lowResWalkability[tp.x() + tp.y()*Broodwar->mapWidth()];
@@ -1059,7 +1078,19 @@ void BWRepDump::updateAttacks()
 		else if (Broodwar->getFrameCount() - it->frame >= 24*SECONDS_SINCE_LAST_ATTACK)
 		{			
 			// Attack is finished, who won the battle ?
-			if (scoreUnits(playerUnits[it->defender]) * 3 < scoreUnits(playerUnits[offender]))
+			std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > aliveUnits;
+			for each (std::pair<Player*, std::set<Unit*> > p in it->battleUnits)
+			{
+				aliveUnits.insert(std::make_pair(p.first, std::list<Unit*>()));
+				for each (Unit* u in p.second)
+				{
+					if (u && u->exists())
+						aliveUnits[p.first].push_back(u);
+				}
+			}
+
+			//if (scoreUnits(playerUnits[it->defender]) * OFFENDER_WIN_COEFFICIENT < scoreUnits(playerUnits[offender]))
+			if (scoreUnits(aliveUnits[it->defender]) * OFFENDER_WIN_COEFFICIENT < scoreUnits(aliveUnits[offender]))
 			{
 				winner = offender; 
 				loser = it->defender;
@@ -1076,6 +1107,7 @@ void BWRepDump::updateAttacks()
 					winner->getName().c_str(), winner->getRace().c_str(), 
 					loser->getName().c_str(), loser->getRace().c_str(),
 					it->position.x(), it->position.y());
+				Broodwar->printf("score winner: %f, score loser: %f", scoreUnits(aliveUnits[winner]), scoreUnits(aliveUnits[loser]));
 #endif
 				std::string tmpAttackType("(");
 				for each (AttackType t in it->types)
@@ -1111,10 +1143,6 @@ void BWRepDump::updateAttacks()
 					tmpUnitTypesEnd += convertInt(pu.first->getID()) + tmpUnitTypesPlayer + ",";
 				}
 				tmpUnitTypesEnd[tmpUnitTypesEnd.size()-1] = '}';
-				TilePosition ttt(it->initPosition);
-				ChokeDepReg cdr = rd.chokeDependantRegion[ttt.x()][ttt.y()];
-				BWTA::Region* r = BWTA::getRegion(ttt);
-				heuristics_analyser ha(it->defender, this);
 				/// $firstFrame, $defenderId, isAttacked, $attackType, 
 				/// ($initPosition.x, $initPosition.y), [$playerId{$type:$maxNumberInvolved}], 
 				/// ($scoreGroundCDR, $scoreGroundRegion, $scoreAirCDR, $scoreAirRegion, $scoreDetectCDR, $scoreDetectRegion,
@@ -1122,11 +1150,11 @@ void BWRepDump::updateAttacks()
 				/// [$playerId{$type:$numberAtEnd}], ($lastPosition.x, $lastPosition.y) ,$lastFrame, $winnerId
 				replayDat << it->firstFrame << "," << it->defender->getID() << ",IsAttacked," << tmpAttackType << ",("
 					<< it->initPosition.x() << "," << it->initPosition.y() << ")," << tmpUnitTypes << ",("
-					<< ha.scoreGround(cdr) << "," << ha.scoreGround(r) << ","
-					<< ha.scoreAir(cdr) << "," << ha.scoreAir(r) << ","
-					<< ha.scoreDetect(cdr) << "," << ha.scoreDetect(r) << ","
-					<< ha.economicImportance(cdr) << "," << ha.economicImportance(r) << ","
-					<< ha.tacticalImportance(cdr) << "," << ha.tacticalImportance(r) 
+					<< it->scoreGroundCDR << "," << it->scoreGroundRegion << ","
+					<< it->scoreAirCDR << "," << it->scoreAirRegion << ","
+					<< it->scoreDetectCDR << "," << it->scoreDetectRegion << ","
+					<< it->economicImportanceCDR << "," << it->economicImportanceRegion << ","
+					<< it->tacticalImportanceCDR << "," << it->tacticalImportanceRegion
 				    << ")," << tmpUnitTypesEnd << ",(" << it->position.x() << "," << it->position.y() << ")," << Broodwar->getFrameCount() << "," << winner->getID() << "\n";
 			}
 			// if the currently examined attack is too old and too far,
@@ -1613,9 +1641,9 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 						currentAttackType.insert(AIR);
 					// not DROP nor AIR for observers / overlords
 				}
-				else // not a flyer
+				else // not a flyer (ruling out obs)
 				{
-					if (tmp->isCloaked() || tmp->isBurrowed())
+					if (tmp->isCloaked() || tmp->getType() == UnitTypes::Zerg_Lurker)
 						currentAttackType.insert(INVIS);
 					else if (ut.canAttack())
 						currentAttackType.insert(GROUND);
@@ -1632,6 +1660,7 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 		radius,
 		defender,
 		playerUnits));
+	attacks.back().computeScores(this);
 	
 	// and record it
 	for each (AttackType at in currentAttackType)

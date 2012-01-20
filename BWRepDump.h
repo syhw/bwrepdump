@@ -54,6 +54,7 @@ enum AttackType {
 };
 
 struct heuristics_analyser;
+class BWRepDump;
 
 struct regions_data
 {
@@ -87,6 +88,16 @@ struct attack
 	std::map<BWAPI::Player*, std::map<BWAPI::UnitType, int> > unitTypes; // countain the maximum number of units of each type which "engaged" in the attack
 	std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > battleUnits;
 	BWAPI::Player* defender;
+	double scoreGroundCDR;
+	double scoreGroundRegion;
+	double scoreAirCDR;
+	double scoreAirRegion;
+	double scoreDetectCDR;
+	double scoreDetectRegion;
+	double economicImportanceCDR;
+	double economicImportanceRegion;
+	double tacticalImportanceCDR;
+	double tacticalImportanceRegion;
 	void addUnit(BWAPI::Unit* u)
 	{
 		if (!battleUnits[u->getPlayer()].count(u))
@@ -111,11 +122,13 @@ struct attack
 				addUnit(u);
 		}
 	}
+	void computeScores(BWRepDump* bwrd);
 };
 
 class BWRepDump : public BWAPI::AIModule
 {
 	friend heuristics_analyser;
+	friend attack;
 protected:
 	// attackByPlayer[p] = (frame, Position)
 	std::list<attack> attacks;
