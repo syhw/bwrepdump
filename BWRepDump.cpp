@@ -1031,6 +1031,8 @@ void BWRepDump::updateAttacks()
 					|| ut == UnitTypes::Zerg_Defiler || ut == UnitTypes::Zerg_Queen || ut == UnitTypes::Zerg_Lurker || ut == UnitTypes::Zerg_Overlord
 					|| ut == UnitTypes::Terran_Medic|| ut == UnitTypes::Terran_Dropship || ut == UnitTypes::Terran_Science_Vessel)
 					it->addUnit(uu);
+				if (ut.isWorker())
+					it->workers[uu->getPlayer()].insert(uu);
 			}
 		}
 		// TODO modify, currently 2 players (1v1) only
@@ -1141,11 +1143,25 @@ void BWRepDump::updateAttacks()
 					tmpUnitTypesEnd += convertInt(pu.first->getID()) + tmpUnitTypesPlayer + ",";
 				}
 				tmpUnitTypesEnd[tmpUnitTypesEnd.size()-1] = '}';
+				std::string tmpWorkersDead("{");
+				for each (std::pair<BWAPI::Player*, std::set<BWAPI::Unit*> > pu in it->workers)
+				{
+					int c = 0;
+					tmpWorkersDead += pu.first->getName() + ":";
+					for each (Unit* u in pu.second)
+					{
+						if (u && !u->exists())
+							++c;
+					}
+					tmpWorkersDead += convertInt(c) + ",";
+				}
+				tmpWorkersDead[tmpWorkersDead.size()-1] = '}';
 				/// $firstFrame, $defenderId, isAttacked, $attackType, 
-				/// ($initPosition.x, $initPosition.y), [$playerId{$type:$maxNumberInvolved}], 
+				/// ($initPosition.x, $initPosition.y), {$playerId:{$type:$maxNumberInvolved}}, 
 				/// ($scoreGroundCDR, $scoreGroundRegion, $scoreAirCDR, $scoreAirRegion, $scoreDetectCDR, $scoreDetectRegion,
 				/// $ecoImportanceCDR, $ecoImportanceRegion, $tactImportanceCDR, $tactImportanceRegion),
-				/// [$playerId{$type:$numberAtEnd}], ($lastPosition.x, $lastPosition.y) ,$lastFrame, $winnerId
+				/// {$playerId:{$type:$numberAtEnd}}, ($lastPosition.x, $lastPosition.y),
+				/// {$playerId:$nbWorkersDead},$lastFrame, $winnerId
 				replayDat << it->firstFrame << "," << it->defender->getID() << ",IsAttacked," << tmpAttackType << ",("
 					<< it->initPosition.x() << "," << it->initPosition.y() << ")," << tmpUnitTypes << ",("
 					<< it->scoreGroundCDR << "," << it->scoreGroundRegion << ","
@@ -1153,7 +1169,8 @@ void BWRepDump::updateAttacks()
 					<< it->scoreDetectCDR << "," << it->scoreDetectRegion << ","
 					<< it->economicImportanceCDR << "," << it->economicImportanceRegion << ","
 					<< it->tacticalImportanceCDR << "," << it->tacticalImportanceRegion
-				    << ")," << tmpUnitTypesEnd << ",(" << it->position.x() << "," << it->position.y() << ")," << Broodwar->getFrameCount() << "," << winner->getID() << "\n";
+				    << ")," << tmpUnitTypesEnd << ",(" << it->position.x() << "," << it->position.y() << ")," 
+					<< tmpWorkersDead << "," << Broodwar->getFrameCount() << "," << winner->getID() << "\n";
 			}
 			// if the currently examined attack is too old and too far,
 			// remove it (no longer a real attack)

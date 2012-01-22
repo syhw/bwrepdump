@@ -87,6 +87,7 @@ struct attack
 	double radius;
 	std::map<BWAPI::Player*, std::map<BWAPI::UnitType, int> > unitTypes; // countain the maximum number of units of each type which "engaged" in the attack
 	std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > battleUnits;
+	std::map<BWAPI::Player*, std::set<BWAPI::Unit*> > workers;
 	BWAPI::Player* defender;
 	double scoreGroundCDR;
 	double scoreGroundRegion;
@@ -118,6 +119,7 @@ struct attack
 		{
 			unitTypes.insert(std::make_pair(pu.first, std::map<BWAPI::UnitType, int>()));
 			battleUnits.insert(std::make_pair(pu.first, std::set<BWAPI::Unit*>()));
+			workers.insert(std::make_pair(pu.first, std::set<BWAPI::Unit*>()));
 			for each (BWAPI::Unit* u in pu.second)
 				addUnit(u);
 		}
