@@ -765,7 +765,7 @@ void BWRepDump::onStart()
 
 	if (Broodwar->isReplay())
 	{
-		//Broodwar->setLocalSpeed(0);
+		Broodwar->setLocalSpeed(0);
 		//Broodwar->setLatCom(false);
 		//Broodwar->setFrameSkip(0);
 		std::ofstream myfile;
@@ -1147,7 +1147,7 @@ void BWRepDump::updateAttacks()
 				for each (std::pair<BWAPI::Player*, std::set<BWAPI::Unit*> > pu in it->workers)
 				{
 					int c = 0;
-					tmpWorkersDead += pu.first->getName() + ":";
+					tmpWorkersDead += convertInt(pu.first->getID()) + ":";
 					for each (Unit* u in pu.second)
 					{
 						if (u && !u->exists())
@@ -1227,7 +1227,7 @@ void BWRepDump::onFrame()
 		{
 			for each (Player* p in this->activePlayers)
 			{
-				this->replayDat << Broodwar->getFrameCount() << "," << p->getID() << ",R," << p->minerals() << "," << p->gas() << "," << p->gatheredMinerals() << "," << p->gatheredGas() << "\n";
+				this->replayDat << Broodwar->getFrameCount() << "," << p->getID() << ",R," << p->minerals() << "," << p->gas() << "," << p->gatheredMinerals() << "," << p->gatheredGas() << ","  << p->supplyUsed() << "," << p->supplyTotal() << "\n";
 			}
 		}
 		int refreshSpeed = 100;
@@ -1346,7 +1346,7 @@ void BWRepDump::onFrame()
 						if (r != NULL)
 						{
 							unitRegion[u] = r;
-							this->replayLocationDat << Broodwar->getFrameCount() << "," << u->getID() << ",Region," << hashRegionCenter(r) << "\n";
+							this->replayLocationDat << Broodwar->getFrameCount() << "," << u->getID() << ",Reg," << hashRegionCenter(r) << "\n";
 						}
 					}
 				}
@@ -1684,7 +1684,7 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 		Broodwar->printf("Player %s is attacked at Position (%d,%d) type %d, %s",
 			defender->getName().c_str(), attackPos.x(), attackPos.y(), at, attackTypeToStr(at).c_str());
 #endif
-		this->replayDat << Broodwar->getFrameCount() << "," << attackTypeToStr(at).c_str() << "," << defender << "," << ",(" << attackPos.x() << "," << attackPos.y() <<")\n";
+		//this->replayDat << Broodwar->getFrameCount() << "," << attackTypeToStr(at).c_str() << "," << defender << "," << ",(" << attackPos.x() << "," << attackPos.y() <<")\n";
 	}
 }
 
