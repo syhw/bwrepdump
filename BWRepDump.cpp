@@ -998,6 +998,8 @@ void BWRepDump::handleTechEvents()
 
 void BWRepDump::updateAttacks()
 {
+	if (attacks.size() > 20)
+		Broodwar->printf("Bug, attacks is bigger than 20");
 	for (std::list<attack>::iterator it = attacks.begin();
 		it != attacks.end(); )
 	{
@@ -1006,7 +1008,7 @@ void BWRepDump::updateAttacks()
 		Broodwar->drawBoxMap(it->position.x() - 6, it->position.y() - 6, it->position.x() + 6, it->position.y() + 6, Colors::Red, true);
 		int i = 0;
 		for each (AttackType at in it->types)
-		{
+		{`
 			Broodwar->drawTextMap(max(0, it->position.x() - 2*TILE_SIZE), max(0, it->position.y() - TILE_SIZE + (i * 16)), 
 				"%s on %s (race %s)",
 				attackTypeToStr(at).c_str(), it->defender->getName().c_str(), it->defender->getRace().c_str());
@@ -1172,9 +1174,10 @@ void BWRepDump::updateAttacks()
 				    << ")," << tmpUnitTypesEnd << ",(" << it->position.x() << "," << it->position.y() << ")," 
 					<< tmpWorkersDead << "," << Broodwar->getFrameCount() << "," << winner->getID() << "\n";
 			}
+			replayDat.flush();
 			// if the currently examined attack is too old and too far,
 			// remove it (no longer a real attack)
-			attacks.erase(it++);
+			attacks.erase(it++);/// TODO this is crashing at 30minutes
 		}
 		else 
 			++it;
@@ -1677,15 +1680,15 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 		playerUnits));
 	attacks.back().computeScores(this);
 	
+#ifdef __DEBUG_OUTPUT__
 	// and record it
 	for each (AttackType at in currentAttackType)
 	{
-#ifdef __DEBUG_OUTPUT__
 		Broodwar->printf("Player %s is attacked at Position (%d,%d) type %d, %s",
 			defender->getName().c_str(), attackPos.x(), attackPos.y(), at, attackTypeToStr(at).c_str());
-#endif
 		//this->replayDat << Broodwar->getFrameCount() << "," << attackTypeToStr(at).c_str() << "," << defender << "," << ",(" << attackPos.x() << "," << attackPos.y() <<")\n";
 	}
+#endif
 }
 
 void BWRepDump::onUnitDestroy(BWAPI::Unit* unit)

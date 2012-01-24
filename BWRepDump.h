@@ -112,7 +112,7 @@ struct attack
 	}
 	attack(const std::set<AttackType>& at, 
 		int f, BWAPI::Position p, double r, BWAPI::Player* d,
-		std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > units)
+		const std::map<BWAPI::Player*, std::list<BWAPI::Unit*> >& units)
 		: types(at), frame(f), firstFrame(BWAPI::Broodwar->getFrameCount()), position(p), initPosition(p), radius(r), defender(d)
 	{
 		for each (std::pair<BWAPI::Player*, std::list<BWAPI::Unit*> > pu in units)
@@ -124,6 +124,19 @@ struct attack
 				addUnit(u);
 		}
 	}
+	/*attack(attack& a)
+		: types(a.types)
+		, frame(a.frame)
+		, firstFrame(a.firstFrame)
+		, position(a.position)
+		, initPosition(a.initPosition)
+		, radius(a.radius)
+		, defender(a.defender)
+	{
+		unitTypes.swap(a.unitTypes);
+		battleUnits.swap(a.battleUnits);
+		workers.swap(a.workers);
+	}*/
 	void computeScores(BWRepDump* bwrd);
 };
 
