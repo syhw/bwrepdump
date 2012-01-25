@@ -7,7 +7,7 @@
 #define MIN_CDREGION_RADIUS 9
 #define SECONDS_SINCE_LAST_ATTACK 12 
 #define DISTANCE_TO_OTHER_ATTACK 14*TILE_SIZE // in pixels
-#define MAX_ATTACK_RADIUS 39.0*TILE_SIZE
+#define MAX_ATTACK_RADIUS 21.0*TILE_SIZE
 #define MIN_ATTACK_RADIUS 7.0*TILE_SIZE
 #define ARMY_TACTICAL_IMPORTANCE 1.0
 #define OFFENDER_WIN_COEFFICIENT 2.0
@@ -387,11 +387,46 @@ std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > BWRepDump::getPlayerMilitaryU
 			|| tmp->getType() == UnitTypes::Zerg_Broodling
 			|| tmp->getType() == UnitTypes::Zerg_Egg
 			|| tmp->getType() == UnitTypes::Zerg_Cocoon
-			|| tmp->getType() == UnitTypes::Protoss_Interceptor
+			//|| tmp->getType() == UnitTypes::Protoss_Interceptor
 			|| tmp->getType() == UnitTypes::Protoss_Scarab
 			|| tmp->getType() == UnitTypes::Terran_Nuclear_Missile)
 			continue; // we take only military/aggressive units
 		playerUnits[tmp->getPlayer()].push_back(tmp);
+	}
+	return playerUnits;
+}
+
+std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > BWRepDump::getPlayerMilitaryUnitsNotInAttack(const std::set<BWAPI::Unit*>& unitsAround)
+{
+	std::map<Player*, std::list<Unit*> > playerUnits;
+	for each (Player* p in activePlayers)
+		playerUnits.insert(make_pair(p, std::list<Unit*>()));
+	for each (Unit* tmp in unitsAround)
+	{
+		if (tmp->getPlayer()->isNeutral() || tmp->getPlayer()->isObserver())
+			continue;
+		if (tmp->isGatheringGas() || tmp->isGatheringMinerals()
+			|| tmp->isRepairing() 
+			|| (tmp->getType().isBuilding() && !tmp->getType().canAttack())
+			|| tmp->getType() == UnitTypes::Zerg_Larva
+			|| tmp->getType() == UnitTypes::Zerg_Broodling
+			|| tmp->getType() == UnitTypes::Zerg_Egg
+			|| tmp->getType() == UnitTypes::Zerg_Cocoon
+			//|| tmp->getType() == UnitTypes::Protoss_Interceptor
+			|| tmp->getType() == UnitTypes::Protoss_Scarab
+			|| tmp->getType() == UnitTypes::Terran_Nuclear_Missile)
+			continue; // we take only military/aggressive units
+		bool found = false;
+		for each (attack a in attacks)
+		{
+			if (a.battleUnits[tmp->getPlayer()].count(tmp))
+			{
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+			playerUnits[tmp->getPlayer()].push_back(tmp);
 	}
 	return playerUnits;
 }
@@ -710,10 +745,31 @@ struct heuristics_analyser
 
 void attack::computeScores(BWRepDump* bwrd)
 {
+	if (bwrd == NULL || defender == NULL || defender->isObserver() || defender->isNeutral()
+		|| !initPosition.isValid())
+	{
+		scoreGroundCDR = -1.0;
+		scoreGroundRegion = -1.0;
+		scoreAirCDR = -1.0;
+		scoreAirRegion = -1.0;
+		scoreDetectCDR = -1.0;
+		scoreDetectRegion = -1.0;
+		economicImportanceCDR = -1.0;
+		economicImportanceRegion = -1.0;
+		tacticalImportanceCDR = -1.0;
+		tacticalImportanceRegion = -1.0;
+		return;
+	}
 	heuristics_analyser ha(defender, bwrd);
 	TilePosition tp(initPosition);
+	if (!bwrd->isWalkable(tp))
+		tp = bwrd->findClosestWalkable(tp);
 	BWTA::Region* r = BWTA::getRegion(tp);
+	if (r == NULL)
+		r = findClosestRegion(tp);
 	ChokeDepReg cdr = bwrd->rd.chokeDependantRegion[tp.x()][tp.y()];
+	if (cdr == -1)
+		cdr = bwrd->findClosestCDR(tp);
 	scoreGroundCDR = ha.scoreGround(cdr);
 	scoreGroundRegion = ha.scoreGround(r);
 	scoreAirCDR = ha.scoreAir(cdr);
@@ -1008,7 +1064,7 @@ void BWRepDump::updateAttacks()
 		Broodwar->drawBoxMap(it->position.x() - 6, it->position.y() - 6, it->position.x() + 6, it->position.y() + 6, Colors::Red, true);
 		int i = 0;
 		for each (AttackType at in it->types)
-		{`
+		{
 			Broodwar->drawTextMap(max(0, it->position.x() - 2*TILE_SIZE), max(0, it->position.y() - TILE_SIZE + (i * 16)), 
 				"%s on %s (race %s)",
 				attackTypeToStr(at).c_str(), it->defender->getName().c_str(), it->defender->getRace().c_str());
@@ -1177,7 +1233,7 @@ void BWRepDump::updateAttacks()
 			replayDat.flush();
 			// if the currently examined attack is too old and too far,
 			// remove it (no longer a real attack)
-			attacks.erase(it++);/// TODO this is crashing at 30minutes
+			attacks.erase(it++);
 		}
 		else 
 			++it;
@@ -1548,17 +1604,17 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 	/// A somewhat biased (because it waits for a unit to die to declare there 
 	/// was an attack) heuristic to detect who attacks who
 
-	/// Initialization
-	std::map<Player*, std::list<Unit*> > playerUnits = getPlayerMilitaryUnits(
-		Broodwar->getUnitsInRadius(u->getPosition(), DISTANCE_TO_OTHER_ATTACK));
-
 	/// Check if it is part of an existing attack (a continuation)
 	for (std::list<attack>::iterator it = attacks.begin();
 		it != attacks.end(); ++it)
 	{
-		if (u->getPosition().getDistance(it->position) < DISTANCE_TO_OTHER_ATTACK + it->radius)
+		if (u->getPosition().getDistance(it->position) < it->radius)
 			return;
 	}
+
+	/// Initialization
+	std::map<Player*, std::list<Unit*> > playerUnits = getPlayerMilitaryUnitsNotInAttack(
+		Broodwar->getUnitsInRadius(u->getPosition(), (int)MAX_ATTACK_RADIUS));
 	
 	/// Removes lonely scout (probes, zerglings, obs) dying 
 	/// or attacks with one unit which did NO kill (epic fails)
@@ -1611,7 +1667,7 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 		}
 	}
 	BWAPI::Position attackPos = u->getPosition();
-	double radius = DISTANCE_TO_OTHER_ATTACK;
+	double radius = MAX_ATTACK_RADIUS;
 	if (attackers > 0)
 	{
 		radius = 0.0;
@@ -1628,8 +1684,8 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 					radius = range_and_dist;
 			}
 		}
-		if (radius < TILE_SIZE*5.0)
-			radius = TILE_SIZE*5.0;
+		if (radius < MIN_ATTACK_RADIUS)
+			radius = MIN_ATTACK_RADIUS;
 	}
 #ifdef __DEBUG_OUTPUT__
 	Broodwar->setScreenPosition(max(0, attackPos.x() - 320),

@@ -161,6 +161,7 @@ protected:
 	void displayChokeDependantRegions();
 	std::set<BWAPI::Unit*> getUnitsCDRegionPlayer(int cdr, BWAPI::Player* p);
 	std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > getPlayerMilitaryUnits(const std::set<BWAPI::Unit*>& unitsAround);
+	std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > getPlayerMilitaryUnitsNotInAttack(const std::set<BWAPI::Unit*>& unitsAround);
 	BWAPI::TilePosition findClosestWalkable(const BWAPI::TilePosition& tp);
 	BWAPI::TilePosition findClosestWalkableSameCDR(const BWAPI::TilePosition& p, ChokeDepReg c);
 	ChokeDepReg findClosestCDR(const BWAPI::TilePosition& tp);
