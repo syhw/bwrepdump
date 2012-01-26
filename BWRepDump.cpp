@@ -5,7 +5,7 @@
 
 // TODO CHANGE THESE CONSTANTS XXX
 #define MIN_CDREGION_RADIUS 9
-#define SECONDS_SINCE_LAST_ATTACK 12 
+#define SECONDS_SINCE_LAST_ATTACK 13
 #define DISTANCE_TO_OTHER_ATTACK 14*TILE_SIZE // in pixels
 #define MAX_ATTACK_RADIUS 21.0*TILE_SIZE
 #define MIN_ATTACK_RADIUS 7.0*TILE_SIZE
@@ -460,7 +460,7 @@ std::set<Unit*> getTownhalls(const std::set<Unit*>& units)
 	std::set<Unit*> ret;
 	for each (Unit* u in units)
 	{
-		if (u->getType().isResourceDepot())
+		if (u && u->exists() && u->getType().isResourceDepot())
 			ret.insert(u);
 	}
 	return ret;
@@ -675,9 +675,9 @@ struct heuristics_analyser
 			for each (Unit* th in ths)
 			{
 				BWTA::Region* thr = BWTA::getRegion(th->getTilePosition());
-				if (thr->getReachableRegions().count(rr))
+				if (thr != NULL && thr->getReachableRegions().count(rr))
 				{
-					double tmp = bwrd->_pfMaps.distRegions[hashRegionCenter(rr)][hashRegionCenter(BWTA::getRegion(th->getPosition()))];
+					double tmp = bwrd->_pfMaps.distRegions[hashRegionCenter(rr)][hashRegionCenter(thr)];
 					tacRegion[rr] += tmp*tmp;
 				}
 				else // if rr is an island, it will be penalized a lot
@@ -720,7 +720,7 @@ struct heuristics_analyser
 			for each (Unit* th in ths)
 			{
 				ChokeDepReg thcdr = bwrd->rd.chokeDependantRegion[th->getTilePosition().x()][th->getTilePosition().y()];
-				if (bwrd->_pfMaps.distCDR[thcdr][cdrr] >= 0.0) // is reachable
+				if (thcdr != -1 && bwrd->_pfMaps.distCDR[thcdr][cdrr] >= 0.0) // is reachable
 				{
 					double tmp = bwrd->_pfMaps.distCDR[thcdr][cdrr];
 					tacCDR[cdrr] += tmp*tmp;
