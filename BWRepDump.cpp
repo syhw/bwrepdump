@@ -867,6 +867,12 @@ void BWRepDump::onStart()
 
 void BWRepDump::onEnd(bool isWinner)
 {
+	for (std::list<attack>::iterator it = attacks.begin();
+		it != attacks.end(); )
+	{
+		endAttack(it, NULL, NULL);
+		attacks.erase(it++);
+	}
 	this->replayDat << "[EndGame]\n";
 	this->replayDat.close();
 	this->replayLocationDat.close();
@@ -1135,7 +1141,7 @@ void BWRepDump::updateAttacks()
 		}
 		else if (Broodwar->getFrameCount() - it->frame >= 24*SECONDS_SINCE_LAST_ATTACK)
 		{			
-			// Attack is finished, who won the battle ?
+			// Attack is finished, who won the battle ? (this is not essential, as we output enough data to recompute it)
 			std::map<BWAPI::Player*, std::list<BWAPI::Unit*> > aliveUnits;
 			for each (std::pair<Player*, std::set<Unit*> > p in it->battleUnits)
 			{
@@ -1146,7 +1152,6 @@ void BWRepDump::updateAttacks()
 						aliveUnits[p.first].push_back(u);
 				}
 			}
-
 			//if (scoreUnits(playerUnits[it->defender]) * OFFENDER_WIN_COEFFICIENT < scoreUnits(playerUnits[offender]))
 			if (scoreUnits(aliveUnits[it->defender]) * OFFENDER_WIN_COEFFICIENT < scoreUnits(aliveUnits[offender]))
 			{
@@ -1158,79 +1163,7 @@ void BWRepDump::updateAttacks()
 				loser = offender; 
 				winner = it->defender;
 			}
-			if (loser != NULL && winner != NULL)
-			{
-#ifdef __DEBUG_OUTPUT__
-				Broodwar->printf("Player %s (race %s) won the battle against player %s (race %s) at Position (%d,%d)",
-					winner->getName().c_str(), winner->getRace().c_str(), 
-					loser->getName().c_str(), loser->getRace().c_str(),
-					it->position.x(), it->position.y());
-				Broodwar->printf("score winner: %f, score loser: %f", scoreUnits(aliveUnits[winner]), scoreUnits(aliveUnits[loser]));
-#endif
-				std::string tmpAttackType("(");
-				for each (AttackType t in it->types)
-					tmpAttackType += attackTypeToStr(t) + ",";
-				tmpAttackType[tmpAttackType.size()-1] = ')';
-				std::string tmpUnitTypes("{");
-				for each (std::pair<BWAPI::Player*, std::map<BWAPI::UnitType, int> > put in it->unitTypes)
-				{
-					std::string tmpUnitTypesPlayer(":{");
-					for each (std::pair<BWAPI::UnitType, int> pp in put.second)
-						tmpUnitTypesPlayer += pp.first.getName() + ":" + convertInt(pp.second) + ",";
-					tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] = '}';
-					tmpUnitTypes += convertInt(put.first->getID()) + tmpUnitTypesPlayer + ",";
-				}
-				tmpUnitTypes[tmpUnitTypes.size()-1] = '}';
-				std::string tmpUnitTypesEnd("{");
-				for each (std::pair<BWAPI::Player*, std::set<BWAPI::Unit*> > pu in it->battleUnits)
-				{
-					std::map<BWAPI::UnitType, int> tmp;
-					for each (BWAPI::Unit* u in pu.second)
-					{
-						if (!u->exists())
-							continue;
-						if (tmp.count(u->getType()))
-							tmp[u->getType()] += 1;
-						else
-							tmp.insert(std::make_pair(u->getType(), 1));
-					}
-					std::string tmpUnitTypesPlayer(":{");
-					for each (std::pair<BWAPI::UnitType, int> pp in tmp)
-						tmpUnitTypesPlayer += pp.first.getName() + ":" + convertInt(pp.second) + ",";
-					tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] = '}';
-					tmpUnitTypesEnd += convertInt(pu.first->getID()) + tmpUnitTypesPlayer + ",";
-				}
-				tmpUnitTypesEnd[tmpUnitTypesEnd.size()-1] = '}';
-				std::string tmpWorkersDead("{");
-				for each (std::pair<BWAPI::Player*, std::set<BWAPI::Unit*> > pu in it->workers)
-				{
-					int c = 0;
-					tmpWorkersDead += convertInt(pu.first->getID()) + ":";
-					for each (Unit* u in pu.second)
-					{
-						if (u && !u->exists())
-							++c;
-					}
-					tmpWorkersDead += convertInt(c) + ",";
-				}
-				tmpWorkersDead[tmpWorkersDead.size()-1] = '}';
-				/// $firstFrame, $defenderId, isAttacked, $attackType, 
-				/// ($initPosition.x, $initPosition.y), {$playerId:{$type:$maxNumberInvolved}}, 
-				/// ($scoreGroundCDR, $scoreGroundRegion, $scoreAirCDR, $scoreAirRegion, $scoreDetectCDR, $scoreDetectRegion,
-				/// $ecoImportanceCDR, $ecoImportanceRegion, $tactImportanceCDR, $tactImportanceRegion),
-				/// {$playerId:{$type:$numberAtEnd}}, ($lastPosition.x, $lastPosition.y),
-				/// {$playerId:$nbWorkersDead},$lastFrame, $winnerId
-				replayDat << it->firstFrame << "," << it->defender->getID() << ",IsAttacked," << tmpAttackType << ",("
-					<< it->initPosition.x() << "," << it->initPosition.y() << ")," << tmpUnitTypes << ",("
-					<< it->scoreGroundCDR << "," << it->scoreGroundRegion << ","
-					<< it->scoreAirCDR << "," << it->scoreAirRegion << ","
-					<< it->scoreDetectCDR << "," << it->scoreDetectRegion << ","
-					<< it->economicImportanceCDR << "," << it->economicImportanceRegion << ","
-					<< it->tacticalImportanceCDR << "," << it->tacticalImportanceRegion
-				    << ")," << tmpUnitTypesEnd << ",(" << it->position.x() << "," << it->position.y() << ")," 
-					<< tmpWorkersDead << "," << Broodwar->getFrameCount() << "," << winner->getID() << "\n";
-			}
-			replayDat.flush();
+			endAttack(it, loser, winner);
 			// if the currently examined attack is too old and too far,
 			// remove it (no longer a real attack)
 			attacks.erase(it++);
@@ -1238,6 +1171,99 @@ void BWRepDump::updateAttacks()
 		else 
 			++it;
 	}
+}
+
+void BWRepDump::endAttack(std::list<attack>::iterator it, BWAPI::Player* loser, BWAPI::Player* winner)
+{
+#ifdef __DEBUG_OUTPUT__
+	if (winner != NULL && loser != NULL)
+	{
+		Broodwar->printf("Player %s (race %s) won the battle against player %s (race %s) at Position (%d,%d)",
+			winner->getName().c_str(), winner->getRace().c_str(), 
+			loser->getName().c_str(), loser->getRace().c_str(),
+			it->position.x(), it->position.y());
+		Broodwar->printf("score winner: %f, score loser: %f", scoreUnits(aliveUnits[winner]), scoreUnits(aliveUnits[loser]));
+	}
+#endif
+	std::string tmpAttackType("(");
+	for each (AttackType t in it->types)
+		tmpAttackType += attackTypeToStr(t) + ",";
+	tmpAttackType[tmpAttackType.size()-1] = ')';
+	std::string tmpUnitTypes("{");
+	for each (std::pair<BWAPI::Player*, std::map<BWAPI::UnitType, int> > put in it->unitTypes)
+	{
+		std::string tmpUnitTypesPlayer(":{");
+		for each (std::pair<BWAPI::UnitType, int> pp in put.second)
+			tmpUnitTypesPlayer += pp.first.getName() + ":" + convertInt(pp.second) + ",";
+		if (tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] == '{')
+			tmpUnitTypesPlayer += "}";
+		else
+			tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] = '}';
+		tmpUnitTypes += convertInt(put.first->getID()) + tmpUnitTypesPlayer + ",";
+	}
+	if (tmpUnitTypes[tmpUnitTypes.size()-1] == '{')
+		tmpUnitTypes += "}";
+	else
+		tmpUnitTypes[tmpUnitTypes.size()-1] = '}';
+	std::string tmpUnitTypesEnd("{");
+	for each (std::pair<BWAPI::Player*, std::set<BWAPI::Unit*> > pu in it->battleUnits)
+	{
+		std::map<BWAPI::UnitType, int> tmp;
+		for each (BWAPI::Unit* u in pu.second)
+		{
+			if (!u->exists())
+				continue;
+			if (tmp.count(u->getType()))
+				tmp[u->getType()] += 1;
+			else
+				tmp.insert(std::make_pair(u->getType(), 1));
+		}
+		std::string tmpUnitTypesPlayer(":{");
+		for each (std::pair<BWAPI::UnitType, int> pp in tmp)
+			tmpUnitTypesPlayer += pp.first.getName() + ":" + convertInt(pp.second) + ",";
+		if (tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] == '{')
+			tmpUnitTypesPlayer += "}";
+		else
+			tmpUnitTypesPlayer[tmpUnitTypesPlayer.size()-1] = '}';
+		tmpUnitTypesEnd += convertInt(pu.first->getID()) + tmpUnitTypesPlayer + ",";
+	}
+	if (tmpUnitTypesEnd[tmpUnitTypesEnd.size()-1] == '{')
+		tmpUnitTypesEnd += "}";
+	else
+		tmpUnitTypesEnd[tmpUnitTypesEnd.size()-1] = '}';
+	std::string tmpWorkersDead("{");
+	for each (std::pair<BWAPI::Player*, std::set<BWAPI::Unit*> > pu in it->workers)
+	{
+		int c = 0;
+		tmpWorkersDead += convertInt(pu.first->getID()) + ":";
+		for each (Unit* u in pu.second)
+		{
+			if (u && !u->exists())
+				++c;
+		}
+		tmpWorkersDead += convertInt(c) + ",";
+	}
+	tmpWorkersDead[tmpWorkersDead.size()-1] = '}';
+	/// $firstFrame, $defenderId, isAttacked, $attackType, 
+	/// ($initPosition.x, $initPosition.y), {$playerId:{$type:$maxNumberInvolved}}, 
+	/// ($scoreGroundCDR, $scoreGroundRegion, $scoreAirCDR, $scoreAirRegion, $scoreDetectCDR, $scoreDetectRegion,
+	/// $ecoImportanceCDR, $ecoImportanceRegion, $tactImportanceCDR, $tactImportanceRegion),
+	/// {$playerId:{$type:$numberAtEnd}}, ($lastPosition.x, $lastPosition.y),
+	/// {$playerId:$nbWorkersDead},$lastFrame, $winnerId
+	replayDat << it->firstFrame << "," << it->defender->getID() << ",IsAttacked," << tmpAttackType << ",("
+		<< it->initPosition.x() << "," << it->initPosition.y() << ")," << tmpUnitTypes << ",("
+		<< it->scoreGroundCDR << "," << it->scoreGroundRegion << ","
+		<< it->scoreAirCDR << "," << it->scoreAirRegion << ","
+		<< it->scoreDetectCDR << "," << it->scoreDetectRegion << ","
+		<< it->economicImportanceCDR << "," << it->economicImportanceRegion << ","
+		<< it->tacticalImportanceCDR << "," << it->tacticalImportanceRegion
+		<< ")," << tmpUnitTypesEnd << ",(" << it->position.x() << "," << it->position.y() << ")," 
+		<< tmpWorkersDead << "," << Broodwar->getFrameCount();
+	if (winner != NULL)
+		replayDat << ",winner:" << winner->getID() << "\n";
+	else
+		replayDat << "\n";
+	replayDat.flush();
 }
 
 void BWRepDump::onFrame()

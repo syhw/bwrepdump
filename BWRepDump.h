@@ -190,6 +190,7 @@ public:
 	virtual void onSaveGame(std::string gameName);
 	void updateAggroPlayers(BWAPI::Unit* u);
 	void updateAttacks();
+	void endAttack(std::list<attack>::iterator it, BWAPI::Player* loser, BWAPI::Player* winner);
 	void drawStats(); //not part of BWAPI::AIModule
 	void drawBullets();
 	void drawVisibilityData();
