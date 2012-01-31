@@ -64,7 +64,7 @@ struct regions_data
     {
         ar & chokeDependantRegion;
     }
-	// 0 -> unwalkable regions
+	// -1 -> unwalkable regions
 	std::vector<std::vector<ChokeDepReg> > chokeDependantRegion;
 	regions_data() 
 		: chokeDependantRegion(std::vector<std::vector<ChokeDepReg> >(BWAPI::Broodwar->mapWidth(), std::vector<ChokeDepReg>(BWAPI::Broodwar->mapHeight(), -1)))
@@ -75,7 +75,7 @@ struct regions_data
 };
 
 BOOST_CLASS_TRACKING(regions_data, boost::serialization::track_never);
-BOOST_CLASS_VERSION(regions_data, 1);
+BOOST_CLASS_VERSION(regions_data, 2);
 
 struct attack
 {
@@ -232,7 +232,7 @@ public:
 
 	std::set<BWAPI::Player*> activePlayers;
 
-	BWAPI::TilePosition regionsPFCenters(BWTA::Region* r);
+	BWAPI::Position regionsPFCenters(BWTA::Region* r);
 	bool isWalkable(const BWAPI::TilePosition& tp);
 
 	//std::map<BWAPI::Unit*, int> lastOrderFrame;
