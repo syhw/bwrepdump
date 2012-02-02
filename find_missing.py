@@ -1,5 +1,9 @@
 import sys, os, shutil
 
+# usage: python find_missing.py NEED_DIR HAVE_DIR optionalCOPY?
+# if you specify a third argument (optionalCOPY?), you need to have the 
+# "todo" directory existing at the same place of this script
+
 need = set()
 have = set()
 for fname in os.listdir(sys.argv[1]):
