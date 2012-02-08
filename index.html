@@ -1,88 +1,191 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset='utf-8'>
+    <head>
+        <meta charset='utf-8'>
 
-  <title>SnippyHolloW/bwrepdump @ GitHub</title>
+        <title>SnippyHolloW/bwrepdump @ GitHub</title>
 
-  <style type="text/css">
-    body {
-      margin-top: 1.0em;
-      background-color: #b3cdf5;
-      font-family: Helvetica, Arial, FreeSans, san-serif;
-      color: #000000;
-    }
-    #container {
-      margin: 0 auto;
-      width: 700px;
-    }
-    h1 { font-size: 3.8em; color: #4c320a; margin-bottom: 3px; }
-    h1 .small { font-size: 0.4em; }
-    h1 a { text-decoration: none }
-    h2 { font-size: 1.5em; color: #4c320a; }
-    h3 { text-align: center; color: #4c320a; }
-    a { color: #4c320a; }
-    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
-    .download { float: right; }
-    pre { background: #000; color: #fff; padding: 15px;}
-    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
-    .footer { text-align:center; padding-top:30px; font-style: italic; }
-  </style>
-</head>
+        <style type="text/css">
+            body {
+                margin-top: 1.0em;
+                background-color: #b3cdf5;
+                font-family: Helvetica, Arial, FreeSans, san-serif;
+                color: #000000;
+            }
+            #container {
+                margin: 0 auto;
+                width: 700px;
+            }
+            h1 { font-size: 3.8em; color: #4c320a; margin-bottom: 3px; }
+            h1 .small { font-size: 0.4em; }
+            h1 a { text-decoration: none }
+            h2 { font-size: 1.5em; color: #4c320a; }
+            h3 { text-align: center; color: #4c320a; }
+            a { color: #4c320a; }
+            .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
+            .download { float: right; }
+            pre { background: #000; color: #fff; padding: 15px;}
+            hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
+            .footer { text-align:center; padding-top:30px; font-style: italic; }
+        </style>
+    </head>
 
-<body>
-  <a href="https://github.com/SnippyHolloW/bwrepdump"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+    <body>
+        <a href="https://github.com/SnippyHolloW/bwrepdump"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
 
-  <div id="container">
+        <div id="container">
 
-    <div class="download">
-      <a href="https://github.com/SnippyHolloW/bwrepdump/zipball/master">
-        <img border="0" width="90" src="https://github.com/images/modules/download/zip.png"></a>
-      <a href="https://github.com/SnippyHolloW/bwrepdump/tarball/master">
-        <img border="0" width="90" src="https://github.com/images/modules/download/tar.png"></a>
-    </div>
+            <div class="download">
+                <a href="https://github.com/SnippyHolloW/bwrepdump/zipball/master">
+                    <img border="0" width="90" src="https://github.com/images/modules/download/zip.png"></a>
+                <a href="https://github.com/SnippyHolloW/bwrepdump/tarball/master">
+                    <img border="0" width="90" src="https://github.com/images/modules/download/tar.png"></a>
+            </div>
 
-    <h1><a href="https://github.com/SnippyHolloW/bwrepdump">bwrepdump</a>
-      <span class="small">by <a href="https://github.com/SnippyHolloW">SnippyHolloW</a></span></h1>
+            <h1><a href="https://github.com/SnippyHolloW/bwrepdump">bwrepdump</a>
+                <span class="small">by <a href="https://github.com/SnippyHolloW">SnippyHolloW</a></span></h1>
 
-    <div class="description">
-      Broodwar replays dumper (using BWAPI)
-    </div>
+            <div class="description">
+                Broodwar replays dumper (using BWAPI)
+            </div>
 
-    
+            <h2>Requirements</h2>
 
-    
+            <p><a href="http://code.google.com/p/bwapi/">BWAPI</a> <br />
+            MS Visual C++ 2008 (optional, <a href="https://github.com/SnippyHolloW/bwrepdump/blob/master/Release/BWRepDump.dll?raw=true">a DLL is here</a>) <br />
+            StarCraft: Broodwar  </p>
 
-    
+            <h2>Pipeline used</h2>
 
-    
+            <p>First, get some replays (I did get mine from ICCUP, TeamLiquid and GosuGamers),
+            with <a href="https://github.com/SnippyHolloW/Broodwar_replays_scrappers">scripts</a>. <br />
+            I use ChaosLauncher to inject BWAPI in StarCraft: Broodwar, in Release mode
+            (Debug will not be able to deal with un-analysed/un-serialized 
+            <a href="http://code.google.com/p/bwta/">BWTA</a> maps), with:</p>
 
-    
-      <h2>Authors</h2>
-      <p>syhw (gabriel.synnaeve@gmail.com)<br/>      </p>
-    
+<pre><code>    auto_menu = SINGLE_PLAYER
+    auto_restart = ON
+    map = maps\replays\some_folder\*.rep
+    mapiteration = SEQUENCE
+</code></pre>
 
-    
-      <h2>Contact</h2>
-      <p>syhw (gabriel.synnaeve@gmail.com)<br/>      </p>
-    
+            <h2>Regions</h2>
 
-    <h2>Download</h2>
-    <p>
-      You can download this project in either
-      <a href="https://github.com/SnippyHolloW/bwrepdump/zipball/master">zip</a> or
-      <a href="https://github.com/SnippyHolloW/bwrepdump/tarball/master">tar formats.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
+            <h3>Serialization</h3>
+
+            <p>To serialize, we <a href="https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L40-43">hash</a> BWTA's regions and ChokeDepReg regions on their TilePosition center.</p>
+
+            <h3>ChokeDepReg: Choke dependant regions</h3>
+
+            <p>ChokeDepReg are regions created from the center of chokes to MAX(MIN_CDR_RADIUS(currently 9), CHOKE_WIDTH) build tiles (TilePositions) away, in a Voronoi tiling fashion. Once that is done, ChokeDepRegs are completed with BWTA::Regions minus existing ChokeDepRegs.</p>
+
+            <h2>Result for one replay</h2>
+
+            <p>Data is partly redundant, in a way that eases analysis.</p>
+
+            <h3>RGD file</h3>
+
+<pre><code>    [Replay Start]
+    RepPath: $(PATH/TO/REP)
+    MapName: $MAPNAME
+    NumStartPositions: $N
+    The following players are in this replay:
+    &lt;list of 
+    $PLAYER_ID, $PLAYER_NAME, $START_LOC
+    separated by newlines&gt;
+    Begin replay data:
+    &lt;list of
+    $FRAME_NUMBER,$PLAYER_ID,$ACTION,[$ACTION_DEP_ARGS]
+    separated by newlines&gt;
+    [EndGame]
+</code></pre>
+
+            <p>Actions can be:
+            - <em>Created</em>,$UNIT_ID,$UNIT_TYPE,($POS_X,$POS_Y),$CDR_HASH,$REGION_HASH <br />
+            - <em>Destroyed</em>,$UNIT_ID,$UNIT_TYPE,($POS_X,$POS_Y) <br />
+            - <em>Discovered</em>,$UNIT_ID,$UNIT_TYPE <br />
+            - <em>R</em>,$MINERALS,$GAS,$GATHERED_MINERALS,$GATHERED_GAS, <br />
+            $SUPPLY_USED,$SUPPLY_TOTAL <br />
+            - <em>ChangedOwnership</em>,$UNIT_ID <br />
+            - <em>Morph</em>,$UNIT_ID,$UNIT_TYPE,($POS_X,$POS_Y) <br />
+            - $FIRST_FRAME,$DEFENDER_ID,<em>IsAttacked</em>,($ATTACK_TYPES),
+            ($INIT_POSITION.X,$INIT_POSITION.Y), <br />
+            {$PLAYER_ID:{$TYPE:$MAX_NUMBER_INVOLVED}}, <br />
+            ($SCORE_GROUND_CDR,$SCORE_GROUND_REGION,$SCORE_AIR_CDR, <br />
+            $SCORE_AIR_REGION,$SCORE_DETECT_CDR,$SCORE_DETECT_REGION, <br />
+            $ECO_IMPORTANCE_CDR,$ECO_IMPORTANCE_REGION, <br />
+            $TACT_IMPORTANCE_CDR,$TACT_IMPORTANCE_REGION), <br />
+            {$PLAYER_ID:{$TYPE:$NUMBER_AT_END}},($LAST_POSITION.X,$LAST_POSITION.Y), <br />
+            {$PLAYER_ID:$NB_WORKERS_DEAD},$LAST_FRAME,$WINNER_ID(OPTIONAL)  </p>
+
+            <p><a href="https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L700">$TACT_IMPORTANCE</a> and <a href="https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L666">$ECO_IMPORTANCE</a> are from in-game heuristics.  </p>
+
+            <h3>ROD file</h3>
+
+<pre><code>    &lt;list of
+    $FRAME,$PLAYER_ID,$ORDER,TargetOrPosition,$POS_X,$POS_Y
+    separated by newlines&gt;
+</code></pre>
+
+            <p>with TargetOrPositions being <em>T</em> if the order in on a unit, <em>P</em> if it's a map position.  </p>
+
+            <h3>RLD file</h3>
+
+<pre><code>    Regions,$REGIONS_IDS_COMMA_SEPARATED
+    $REGION_ID, $DIST, $DIST, ...
+    $REGION_ID, $DIST, $DIST, ...
+    .
+    .
+    .
+    ChokeDepReg,$REGIONS_IDS_COMMA_SEPARATED
+    $REGION_ID, $DIST, $DIST, ...
+    $REGION_ID, $DIST, $DIST, ...
+    .
+    .
+    .
+    [Replay Start]
+    &lt;list of
+    $FRAME,$UNIT_ID,$POS_X,$POS_Y
+    $FRAME,$UNIT_ID,Reg,$REGION_ID
+    $FRAME,$UNIT_ID,CDR,$CDR_ID
+    separated by newlines&gt;
+</code></pre>
+
+            <p>With new lines uniquely when the unit moved (of Position and/or Region and/or ChokeDepReg) in the last refresh rate frames (100 atm).</p>
+
+            <h2>Tuning</h2>
+
+            <p><a href="https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L7-14">You can tune these defines.</a></p>
+
+            <h2>Final words</h2>
+
+            <p>This work is an extension of <a href="http://code.google.com/p/bwrepanalysis/">bwrepanalysis</a></p>
+
+            <h2>Authors</h2>
+            <p>syhw (gabriel.synnaeve@gmail.com)<br/>      </p>
+
+
+
+            <h2>Contact</h2>
+            <p>syhw (gabriel.synnaeve@gmail.com)<br/>      </p>
+
+
+            <h2>Download</h2>
+            <p>
+            You can download this project in either
+            <a href="https://github.com/SnippyHolloW/bwrepdump/zipball/master">zip</a> or
+            <a href="https://github.com/SnippyHolloW/bwrepdump/tarball/master">tar formats.
+                </p>
+                <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
+                by running:
       <pre>$ git clone git://github.com/SnippyHolloW/bwrepdump</pre>
-    </p>
+                </p>
 
-    <div class="footer">
-      get the source code on GitHub : <a href="https://github.com/SnippyHolloW/bwrepdump">SnippyHolloW/bwrepdump</a>
-    </div>
+                <div class="footer">
+                    get the source code on GitHub : <a href="https://github.com/SnippyHolloW/bwrepdump">SnippyHolloW/bwrepdump</a>
+                </div>
 
-  </div>
+            </div>
 
-</body>
-</html>
+        </body>
+    </html>
