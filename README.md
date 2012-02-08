@@ -1,11 +1,11 @@
 Requirements
-============
+------------
 [BWAPI](http://code.google.com/p/bwapi/)   
 MS Visual C++ 2008 (optional, [a DLL is here](https://github.com/SnippyHolloW/bwrepdump/blob/master/Release/BWRepDump.dll?raw=true))   
 StarCraft: Broodwar  
 
 Pipeline used
-=============
+-------------
 First, get some replays (I did get mine from ICCUP, TeamLiquid and GosuGamers),
  with [scripts](https://github.com/SnippyHolloW/Broodwar_replays_scrappers).  
 I use ChaosLauncher to inject BWAPI in StarCraft: Broodwar, in Release mode
@@ -17,25 +17,18 @@ I use ChaosLauncher to inject BWAPI in StarCraft: Broodwar, in Release mode
         map = maps\replays\some_folder\*.rep
         mapiteration = SEQUENCE
 
-Tuning
-======
-[You can tune these defines.](https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L7)
-
 Regions
-=======
-Serialization
--------------
+-------
+### Serialization
 To serialize, we [hash](https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L40-43) BWTA's regions and ChokeDepReg regions on their TilePosition center.
 
-ChokeDepReg: Choke dependant regions
-------------------------------------
+### ChokeDepReg: Choke dependant regions
 ChokeDepReg are regions created from the center of chokes to MAX(MIN\_CDR\_RADIUS(currently 9), CHOKE\_WIDTH) build tiles (TilePositions) away, in a Voronoi tiling fashion. Once that is done, ChokeDepRegs are completed with BWTA::Regions minus existing ChokeDepRegs.
   
 Result for one replay
-=====================
+---------------------
 Data is partly redundant, in a way that eases analysis.
-RGD file
---------
+### RGD file
         [Replay Start]
         RepPath: $(PATH/TO/REP)
         MapName: $MAPNAME
@@ -70,15 +63,13 @@ $TACT\_IMPORTANCE\_CDR,$TACT\_IMPORTANCE\_REGION),
 
 [$TACT\_IMPORTANCE](https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L700) and [$ECO\_IMPORTANCE](https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L666) are from in-game heuristics.  
 
-ROD file
---------
+### ROD file
         <list of
         $FRAME,$PLAYER_ID,$ORDER,TargetOrPosition,$POS_X,$POS_Y
         separated by newlines>
 with TargetOrPositions being *T* if the order in on a unit, *P* if it's a map position.  
 
-RLD file
---------
+### RLD file
         Regions,$REGIONS_IDS_COMMA_SEPARATED
         $REGION_ID, $DIST, $DIST, ...
         $REGION_ID, $DIST, $DIST, ...
@@ -100,7 +91,12 @@ RLD file
 
 With new lines uniquely when the unit moved (of Position and/or Region and/or ChokeDepReg) in the last refresh rate frames (100 atm).
 
+Tuning
+------
+[You can tune these defines.](https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L7-14)
+
 
 Final words
 -----------
 This work is an extension of [bwrepanalysis](http://code.google.com/p/bwrepanalysis/)
+
