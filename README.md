@@ -1,8 +1,8 @@
 Requirements
 ============
-[BWAPI](http://code.google.com/p/bwapi/)
-MS Visual C++ 2008 (optional, [a DLL is here](https://github.com/SnippyHolloW/bwrepdump/blob/master/Release/BWRepDump.dll?raw=true)) 
-StarCraft: Broodwar 
+[BWAPI](http://code.google.com/p/bwapi/)   
+MS Visual C++ 2008 (optional, [a DLL is here](https://github.com/SnippyHolloW/bwrepdump/blob/master/Release/BWRepDump.dll?raw=true))   
+StarCraft: Broodwar  
 
 Pipeline used
 =============
