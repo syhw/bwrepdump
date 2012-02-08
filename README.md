@@ -50,18 +50,18 @@ RGD file
         [EndGame]
         
 Actions can be:
-* *Created*,$UNIT\_ID,$UNIT\_TYPE,($POS\_X,$POS\_Y),$CDR\_HASH,$REGION\_HASH
-* *Destroyed*,$UNIT\_ID,$UNIT\_TYPE,($POS\_X,$POS\_Y)
-* *Discovered*,$UNIT\_ID,$UNIT\_TYPE
-* *R*,$MINERALS,$GAS,$GATHERED\_MINERALS,$GATHERED\_GAS,$SUPPLY\_USED,$SUPPLY\_TOTAL
-* *ChangedOwnership*,$UNIT\_ID
-* *Morph*,$UNIT\_ID,$UNIT\_TYPE,($POS\_X,$POS\_Y)
+* *Created*,$UNIT\_ID,$UNIT\_TYPE,($POS\_X,$POS\_Y),$CDR\_HASH,$REGION\_HASH  
+* *Destroyed*,$UNIT\_ID,$UNIT\_TYPE,($POS\_X,$POS\_Y)  
+* *Discovered*,$UNIT\_ID,$UNIT\_TYPE  
+* *R*,$MINERALS,$GAS,$GATHERED\_MINERALS,$GATHERED\_GAS,$SUPPLY\_USED,$SUPPLY\_TOTAL  
+* *ChangedOwnership*,$UNIT\_ID  
+* *Morph*,$UNIT\_ID,$UNIT\_TYPE,($POS\_X,$POS\_Y)  
 * $FIRST\_FRAME,$DEFENDER\_ID,*IsAttacked*,($ATTACK\_TYPES),
 ($INIT\_POSITION.X,$INIT\_POSITION.Y),{$PLAYER\_ID:{$TYPE:$MAX\_NUMBER\_INVOLVED}},
 ($SCORE\_GROUND\_CDR,$SCORE\_GROUND\_REGION,$SCORE\_AIR\_CDR,$SCORE\_AIR\_REGION,$SCORE\_DETECT\_CDR,$SCORE\_DETECT\_REGION,
 $ECO\_IMPORTANCE\_CDR,$ECO\_IMPORTANCE\_REGION,$TACT\_IMPORTANCE\_CDR,$TACT\_IMPORTANCE\_REGION),
 {$PLAYER\_ID:{$TYPE:$NUMBER\_AT\_END}},($LAST\_POSITION.X,$LAST\_POSITION.Y),
-{$PLAYER\_ID:$NB\_WORKERS\_DEAD},$LAST\_FRAME,$WINNER\_ID(OPTIONAL)
+{$PLAYER\_ID:$NB\_WORKERS\_DEAD},$LAST\_FRAME,$WINNER\_ID(OPTIONAL)  
 
 [$TACT\_IMPORTANCE](https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L700) and [$ECO\_IMPORTANCE](https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L666) are from in-game heuristics.  
 
