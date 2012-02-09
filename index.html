@@ -49,6 +49,7 @@
                 Broodwar replays dumper (using BWAPI)
             </div>
 
+
             <h2>Requirements</h2>
 
             <p><a href="http://code.google.com/p/bwapi/">BWAPI</a> <br />
@@ -118,6 +119,8 @@
             {$PLAYER_ID:{$TYPE:$NUMBER_AT_END}},($LAST_POSITION.X,$LAST_POSITION.Y), <br />
             {$PLAYER_ID:$NB_WORKERS_DEAD},$LAST_FRAME,$WINNER_ID(OPTIONAL)  </p>
 
+            <p>$ATTACK_TYPES are in {DropAttack, GroundAttack, AirAttack, InvisAttack, UnknownAttackError}.  </p>
+
             <p><a href="https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L700">$TACT_IMPORTANCE</a> and <a href="https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L666">$ECO_IMPORTANCE</a> are from in-game heuristics.  </p>
 
             <h3>ROD file</h3>
@@ -160,6 +163,7 @@
             <h2>Final words</h2>
 
             <p>This work is an extension of <a href="http://code.google.com/p/bwrepanalysis/">bwrepanalysis</a></p>
+
 
             <h2>Authors</h2>
             <p>syhw (gabriel.synnaeve@gmail.com)<br/>      </p>
