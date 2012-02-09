@@ -61,6 +61,8 @@ $TACT\_IMPORTANCE\_CDR,$TACT\_IMPORTANCE\_REGION),
 {$PLAYER\_ID:{$TYPE:$NUMBER\_AT\_END}},($LAST\_POSITION.X,$LAST\_POSITION.Y),  
 {$PLAYER\_ID:$NB\_WORKERS\_DEAD},$LAST\_FRAME,$WINNER\_ID(OPTIONAL)  
 
+$ATTACK\_TYPES are in {DropAttack, GroundAttack, AirAttack, InvisAttack, UnknownAttackError}.  
+
 [$TACT\_IMPORTANCE](https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L700) and [$ECO\_IMPORTANCE](https://github.com/SnippyHolloW/bwrepdump/blob/master/BWRepDump.cpp#L666) are from in-game heuristics.  
 
 ### ROD file
