@@ -1271,9 +1271,14 @@ void BWRepDump::endAttack(std::list<attack>::iterator it, BWAPI::Player* loser, 
 	}
 #endif
 	std::string tmpAttackType("(");
-	for each (AttackType t in it->types)
-		tmpAttackType += attackTypeToStr(t) + ",";
-	tmpAttackType[tmpAttackType.size()-1] = ')';
+    if (it->types.empty())
+        tmpAttackType += ")";
+    else
+    {
+        for each (AttackType t in it->types)
+            tmpAttackType += attackTypeToStr(t) + ",";
+        tmpAttackType[tmpAttackType.size()-1] = ')';
+    }
 	std::string tmpUnitTypes("{");
 	for each (std::pair<BWAPI::Player*, std::map<BWAPI::UnitType, int> > put in it->unitTypes)
 	{
@@ -1335,8 +1340,18 @@ void BWRepDump::endAttack(std::list<attack>::iterator it, BWAPI::Player* loser, 
 	/// $ecoImportanceCDR, $ecoImportanceRegion, $tactImportanceCDR, $tactImportanceRegion),
 	/// {$playerId:{$type:$numberAtEnd}}, ($lastPosition.x, $lastPosition.y),
 	/// {$playerId:$nbWorkersDead},$lastFrame, $winnerId
+    //
+		this->replayDat << "," << rd.chokeDependantRegion[tp.x()][tp.y()]; // if there is no CDR it's -1
+		if (BWTA::getRegion(tp) != NULL)
+			this->replayDat << "," << hashRegionCenter(BWTA::getRegion(tp)) << "\n";
+    //
+
+    BWAPI::TilePosition tmptp(it->initPosition.x(), it->initPosition.y());
 	replayDat << it->firstFrame << "," << it->defender->getID() << ",IsAttacked," << tmpAttackType << ",("
-		<< it->initPosition.x() << "," << it->initPosition.y() << ")," << tmpUnitTypes << ",("
+		<< it->initPosition.x() << "," << it->initPosition.y() << ")," 
+        << rd.chokeDependantRegion[tmptp.x()][tmptp.y()] << ","
+        << hashRegionCenter(BWTA::getRegion(tmptp)) << ","
+        << tmpUnitTypes << ",("
 		<< it->scoreGroundCDR << "," << it->scoreGroundRegion << ","
 		<< it->scoreAirCDR << "," << it->scoreAirRegion << ","
 		<< it->scoreDetectCDR << "," << it->scoreDetectRegion << ","
