@@ -1341,7 +1341,7 @@ void BWRepDump::endAttack(std::list<attack>::iterator it, BWAPI::Player* loser, 
 	/// {$playerId:{$type:$numberAtEnd}}, ($lastPosition.x, $lastPosition.y),
 	/// {$playerId:$nbWorkersDead},$lastFrame, $winnerId
 
-    BWAPI::TilePosition tmptp(it->initPosition.x(), it->initPosition.y());
+    BWAPI::TilePosition tmptp(it->initPosition);
 	replayDat << it->firstFrame << "," << it->defender->getID() << ",IsAttacked," << tmpAttackType << ",("
 		<< it->initPosition.x() << "," << it->initPosition.y() << ")," 
         << rd.chokeDependantRegion[tmptp.x()][tmptp.y()] << ","
