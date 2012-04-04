@@ -746,7 +746,7 @@ struct heuristics_analyser
 
 	double tacticalImportance(ChokeDepReg cdr)
 	{
-		if (!tacCDR.count(cdr))
+		if (tacCDR.count(cdr))
 			return tacCDR[cdr];
 		std::set<Unit*> ths = getTownhalls(p->getUnits());
 		std::list<Unit*> army = bwrd->getPlayerMilitaryUnits(p->getUnits())[p];
