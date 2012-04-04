@@ -1340,11 +1340,6 @@ void BWRepDump::endAttack(std::list<attack>::iterator it, BWAPI::Player* loser, 
 	/// $ecoImportanceCDR, $ecoImportanceRegion, $tactImportanceCDR, $tactImportanceRegion),
 	/// {$playerId:{$type:$numberAtEnd}}, ($lastPosition.x, $lastPosition.y),
 	/// {$playerId:$nbWorkersDead},$lastFrame, $winnerId
-    //
-		this->replayDat << "," << rd.chokeDependantRegion[tp.x()][tp.y()]; // if there is no CDR it's -1
-		if (BWTA::getRegion(tp) != NULL)
-			this->replayDat << "," << hashRegionCenter(BWTA::getRegion(tp)) << "\n";
-    //
 
     BWAPI::TilePosition tmptp(it->initPosition.x(), it->initPosition.y());
 	replayDat << it->firstFrame << "," << it->defender->getID() << ",IsAttacked," << tmpAttackType << ",("
