@@ -1878,7 +1878,7 @@ void BWRepDump::updateAggroPlayers(BWAPI::Unit* u)
 				if (ut.isFlyer())
 				{
 					if (ut.spaceProvided() > 0
-						&& (Broodwar->getFrameCount() - lastDropOrderByPlayer[p]) < 24*SECONDS_SINCE_LAST_ATTACK)
+						&& (Broodwar->getFrameCount() - lastDropOrderByPlayer[p]) < 24*SECONDS_SINCE_LAST_ATTACK * 2)
 						currentAttackType.insert(DROP);
 					else if (ut.canAttack()
 						|| ut == UnitTypes::Terran_Science_Vessel
